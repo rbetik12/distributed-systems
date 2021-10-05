@@ -70,7 +70,7 @@ void Log(enum LogType type, const char *format, int argsAmount, ...)
         {
             Message *message = va_arg(valist, Message*);
             printf("Message info:\n");
-            printf("\ts_magic: %d\n", message->s_header.s_magic);
+            printf("\ts_magic: 0x%X\n", message->s_header.s_magic);
             printf("\ts_payload_len: %d\n", message->s_header.s_payload_len);
             printf("\ts_type: %s\n", MessageTypeToStr(message->s_header.s_type));
             printf("\ts_local_time: %d\n", message->s_header.s_local_time);
