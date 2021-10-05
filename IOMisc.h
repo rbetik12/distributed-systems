@@ -1,7 +1,8 @@
 #pragma once
 
-#include "unistd.h"
-#include "stdint.h"
+#include <unistd.h>
+#include <stdint.h>
+#include "ipc.h"
 
 /*
  * How it works:
@@ -45,3 +46,5 @@ enum LogType
 };
 
 void Log(enum LogType type, const char *format, int argsAmount, ...);
+int SendString(struct IOInfo ioInfo, local_id destination, const char* string, Message* message);
+void InitMessage(Message *message);

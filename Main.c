@@ -12,6 +12,8 @@
 struct IOInfo ioInfo;
 local_id curProcessId;
 const int8_t childProcessAmount = 3;
+pid_t currentPID = 0;
+pid_t parentPID = 0;
 
 void SetupOtherProcessPipes(local_id curProcessId, struct ProcessInfo *process)
 {
@@ -87,6 +89,7 @@ void SetupProcessPipes(local_id curProcessId, struct ProcessInfo *processInfo, b
 
 bool RunChildProcess()
 {
+    currentPID = getpid();
     for (int8_t processIndex = 0; processIndex < ioInfo.processAmount; processIndex++)
     {
         struct ProcessInfo *process = &ioInfo.process[processIndex];
@@ -110,12 +113,9 @@ bool RunChildProcess()
 
     if (curProcessId == 0)
     {
-        const char* string = "hello from process 0!";
         Message message;
-        snprintf(message.s_payload, MAX_PAYLOAD_LEN, "%s", string);
-        message.s_header.s_payload_len = strlen(string) + 1;
-
-        send(&ioInfo, 1, &message);
+        InitMessage(&message);
+        SendString(ioInfo, 1, "Hello from process 0!", &message);
         Log(Debug, "Process 0 sent message to process 1.\n", 0);
         Log(MessageInfo, NULL, 1, &message);
     } else if (curProcessId == 1)
@@ -131,6 +131,8 @@ bool RunChildProcess()
 
 int main()
 {
+    parentPID = getpid();
+    currentPID = parentPID;
     memset(&ioInfo, 0, sizeof(ioInfo));
     ioInfo.processAmount = childProcessAmount;
 
