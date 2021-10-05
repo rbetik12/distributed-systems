@@ -2,18 +2,17 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <stdio.h>
 #include "IOMisc.h"
 
-extern local_id curProcessId;
+extern local_id currentLocalID;
 
 int send(void *self, local_id dst, const Message *msg)
 {
     struct IOInfo *ioInfo = (struct IOInfo *) self;
-    struct ProcessInfo currentProcess = ioInfo->process[curProcessId];
+    struct ProcessInfo currentProcess = ioInfo->process[currentLocalID];
 
     //Checks if we send message to ourselves
-    if (dst == curProcessId)
+    if (dst == currentLocalID)
     {
         Log(Debug, "Process %d trying to send message to himself!\n", 1, getpid());
         return -1;
@@ -51,13 +50,13 @@ int receive(void * self, local_id from, Message * msg)
     struct ProcessInfo* processInfo = &ioInfo->process[from];
 
     //Checks if we are trying to receive message from ourselves
-    if (from == curProcessId)
+    if (from == currentLocalID)
     {
         Log(Debug, "Process %d trying to receive message from himself!\n", 1, getpid());
         return -1;
     }
 
-    ssize_t readAmount = read(processInfo->pipe[curProcessId][0], &msg->s_header, sizeof(msg->s_header));
+    ssize_t readAmount = read(processInfo->pipe[currentLocalID][0], &msg->s_header, sizeof(msg->s_header));
 
     if (readAmount != sizeof(msg->s_header))
     {
@@ -69,7 +68,13 @@ int receive(void * self, local_id from, Message * msg)
         return -1;
     }
 
-    readAmount = read(processInfo->pipe[curProcessId][0], msg->s_payload, msg->s_header.s_payload_len);
+    if (msg->s_header.s_magic != MESSAGE_MAGIC)
+    {
+        Log(Debug, "Process %d received message with incorrect magiс number!\n", currentLocalID);
+        return -1;
+    }
+
+    readAmount = read(processInfo->pipe[currentLocalID][0], msg->s_payload, msg->s_header.s_payload_len);
 
     if (readAmount != msg->s_header.s_payload_len)
     {
