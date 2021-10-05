@@ -7,6 +7,7 @@
 #include <string.h>
 #include "IOMisc.h"
 #include "ipc.h"
+#include "pa1.h"
 
 struct IOInfo ioInfo;
 const int8_t processAmount = 4;
@@ -24,26 +25,12 @@ bool RunChildProcess()
     if (close(ioInfo.process[0].pipe[currentLocalID][0]))
     {
         perror("Close");
+        return false;
     }
     ioInfo.process[0].pipe[currentLocalID][0] = 0;
 
-    if (currentLocalID == 1)
-    {
-        Message message;
-        InitMessage(&message);
-        SendString(ioInfo, 2, "Hello from process 1!", &message);
-    } else if (currentLocalID == 2)
-    {
-        Message message;
-        receive(&ioInfo, 1, &message);
-        Log(MessageInfo, NULL, 1, &message);
-    }
-    else if (currentLocalID == 3)
-    {
-        Message message;
-        InitMessage(&message);
-        SendString(ioInfo, PARENT_ID, "Hello Parent process from process 3!", &message);
-    }
+    Log(Event, log_started_fmt, 3, currentLocalID, currentPID, parentPID);
+    Log(Event, log_done_fmt, 1, currentLocalID);
 
     return true;
 }
@@ -92,10 +79,6 @@ int main()
 
     ioInfo.process[0].pid = 0;
     InitIO(&currentLocalID, &ioInfo);
-
-    Message message;
-    receive(&ioInfo, 3, &message);
-    Log(MessageInfo, NULL, 1, &message);
 
     for (int i = 0; i < ioInfo.processAmount; i++)
     {
