@@ -9,7 +9,7 @@
 #include "ipc.h"
 
 struct IOInfo ioInfo;
-const int8_t childProcessAmount = 3;
+const int8_t processAmount = 4;
 local_id currentLocalID = 0;
 pid_t currentPID = 0;
 pid_t parentPID = 0;
@@ -17,21 +17,32 @@ pid_t parentPID = 0;
 bool RunChildProcess()
 {
     currentPID = getpid();
-    InitIO(&currentLocalID, &ioInfo);
 
-    if (currentLocalID == 0)
+    // Mark parent process as non-zero process to determine it
+    ioInfo.process[0].pid = -1;
+    InitIO(&currentLocalID, &ioInfo);
+    if (close(ioInfo.process[0].pipe[currentLocalID][0]))
+    {
+        perror("Close");
+    }
+    ioInfo.process[0].pipe[currentLocalID][0] = 0;
+
+    if (currentLocalID == 1)
     {
         Message message;
         InitMessage(&message);
-        SendString(ioInfo, 1, "Hello from process 0!", &message);
-        Log(Debug, "Process 0 sent message to process 1.\n", 0);
-        Log(MessageInfo, NULL, 1, &message);
-    } else if (currentLocalID == 1)
+        SendString(ioInfo, 2, "Hello from process 1!", &message);
+    } else if (currentLocalID == 2)
     {
         Message message;
-        receive(&ioInfo, 0, &message);
-        Log(Debug, "Process 1 received message from process 0.\n", 0);
+        receive(&ioInfo, 1, &message);
         Log(MessageInfo, NULL, 1, &message);
+    }
+    else if (currentLocalID == 3)
+    {
+        Message message;
+        InitMessage(&message);
+        SendString(ioInfo, PARENT_ID, "Hello Parent process from process 3!", &message);
     }
 
     return true;
@@ -42,7 +53,7 @@ int main()
     parentPID = getpid();
     currentPID = parentPID;
     memset(&ioInfo, 0, sizeof(ioInfo));
-    ioInfo.processAmount = childProcessAmount;
+    ioInfo.processAmount = processAmount;
 
     for (int processIndex = 0; processIndex < ioInfo.processAmount; processIndex++)
     {
@@ -57,7 +68,7 @@ int main()
         }
     }
 
-    for (int i = 0; i < ioInfo.processAmount; i++)
+    for (int i = 1; i < ioInfo.processAmount; i++)
     {
         ioInfo.process[i].pid = fork();
         switch (ioInfo.process[i].pid)
@@ -78,6 +89,13 @@ int main()
             }
         }
     }
+
+    ioInfo.process[0].pid = 0;
+    InitIO(&currentLocalID, &ioInfo);
+
+    Message message;
+    receive(&ioInfo, 3, &message);
+    Log(MessageInfo, NULL, 1, &message);
 
     for (int i = 0; i < ioInfo.processAmount; i++)
     {

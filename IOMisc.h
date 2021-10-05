@@ -29,13 +29,13 @@
 struct ProcessInfo
 {
     pid_t pid;
-    int pipe[10][2];
+    int pipe[11][2];
 };
 
 struct IOInfo
 {
     int8_t processAmount;
-    struct ProcessInfo process[10];
+    struct ProcessInfo process[11];
 };
 
 enum LogType

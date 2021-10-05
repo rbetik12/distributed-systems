@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <stdio.h>
 #include "IOMisc.h"
 
 extern local_id currentLocalID;
