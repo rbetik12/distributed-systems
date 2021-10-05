@@ -77,7 +77,7 @@ void SetupCurrentProcessPipes(local_id curProcessId, struct ProcessInfo *process
     }
 }
 
-void SetupProcessPipes(local_id curProcessId, struct ProcessInfo *processInfo, struct IOInfo* ioInfo, bool isCurrent)
+void SetupProcessPipes(local_id curProcessId, struct ProcessInfo *processInfo, struct IOInfo *ioInfo, bool isCurrent)
 {
     if (isCurrent)
     {
@@ -88,7 +88,7 @@ void SetupProcessPipes(local_id curProcessId, struct ProcessInfo *processInfo, s
     }
 }
 
-void InitIO(local_id* currentProcessId, struct IOInfo* ioInfo)
+void InitIO(local_id *currentProcessId, struct IOInfo *ioInfo)
 {
     for (int8_t processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
     {
@@ -108,6 +108,28 @@ void InitIO(local_id* currentProcessId, struct IOInfo* ioInfo)
         } else
         {
             SetupProcessPipes(*currentProcessId, process, ioInfo, false);
+        }
+    }
+}
+
+#define CLOSE_PIPE(PIPE_ARRAY, PIPE_INDEX) if (PIPE_ARRAY[PIPE_INDEX] != 0) \
+                                            {                              \
+                                                if (close(PIPE_ARRAY[PIPE_INDEX])) \
+                                                {                           \
+                                                    perror("Close in shutdown");\
+                                                } \
+                                                PIPE_ARRAY[PIPE_INDEX] = 0;    \
+                                            } \
+
+void ShutdownIO(struct IOInfo *ioInfo)
+{
+    for (int8_t processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
+    {
+        struct ProcessInfo processInfo = ioInfo->process[processIndex];
+        for (int8_t pipeIndex = 0; pipeIndex < ioInfo->processAmount; pipeIndex++)
+        {
+            CLOSE_PIPE(processInfo.pipe[pipeIndex], 0)
+            CLOSE_PIPE(processInfo.pipe[pipeIndex], 1)
         }
     }
 }

@@ -32,6 +32,8 @@ bool RunChildProcess()
     Log(Event, log_started_fmt, 3, currentLocalID, currentPID, parentPID);
     Log(Event, log_done_fmt, 1, currentLocalID);
 
+    ShutdownIO(&ioInfo);
+
     return true;
 }
 
@@ -84,6 +86,8 @@ int main()
     {
         wait(&ioInfo.process[i].pid);
     }
+
+    ShutdownIO(&ioInfo);
 
     return 0;
 }
