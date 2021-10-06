@@ -86,22 +86,13 @@ int main(int argc, char *argv[])
         ioInfo.process[processIndex].pid = -1;
         for (int childProcessPipeIndex = 0; childProcessPipeIndex < ioInfo.processAmount; childProcessPipeIndex++)
         {
-            if (pipe(ioInfo.process[processIndex].pipe[childProcessPipeIndex]) == -1)
+            if (childProcessPipeIndex != processIndex)
             {
-                perror("pipe");
-                exit(EXIT_FAILURE);
-            }
-
-            // Here we close parent process pipe write end, because parent process is not able to write to child processes
-            if (processIndex == PARENT_ID)
-            {
-//                if (close(ioInfo.process[processIndex].pipe[childProcessPipeIndex][1]))
-//                {
-//                    perror("Close parent write end");
-//                    exit(EXIT_FAILURE);
-//                }
-
-                CLOSE_PIPE(ioInfo.process[processIndex].pipe[childProcessPipeIndex], 1)
+                if (pipe(ioInfo.process[processIndex].pipe[childProcessPipeIndex]) == -1)
+                {
+                    perror("pipe");
+                    exit(EXIT_FAILURE);
+                }
             }
         }
     }
