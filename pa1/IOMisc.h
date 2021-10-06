@@ -70,6 +70,6 @@ void InitIO(local_id *currentProcessId, struct IOInfo *ioInfo);
 
 void ShutdownIO(struct IOInfo *ioInfo);
 
-void Shutdown();
+void ShutdownLog();
 
 void InitLog();

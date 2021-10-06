@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
     }
 
     ShutdownIO(&ioInfo);
-    Shutdown();
+    ShutdownLog();
 
     return 0;
 }

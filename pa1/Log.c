@@ -14,7 +14,7 @@ void InitLog()
     pipesLogFile = fopen(pipes_log, "a");
 }
 
-void Shutdown()
+void ShutdownLog()
 {
     fclose(eventLogFile);
     fclose(pipesLogFile);

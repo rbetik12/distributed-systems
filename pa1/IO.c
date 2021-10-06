@@ -38,28 +38,11 @@ void SetupOtherProcessPipes(local_id curProcessId, struct ProcessInfo *process, 
         //If we go to current process pipe we set it to read-only mode, so current process can receive messages from other processes.
         if (pipeIndex == curProcessId)
         {
-//            if (close(process->pipe[pipeIndex][1]))
-//            {
-//                perror("close");
-//            }
-//            process->pipe[pipeIndex][1] = 0;
             CLOSE_PIPE(process->pipe[pipeIndex], 1)
         }
             // Otherwise, we close whole pipe, because it isn't connected to our process.
         else
         {
-//            if (close(process->pipe[pipeIndex][0]))
-//            {
-//                perror("Close");
-//            }
-//            if (close(process->pipe[pipeIndex][1]))
-//            {
-//                perror("Close");
-//            }
-//
-//            process->pipe[pipeIndex][0] = 0;
-//            process->pipe[pipeIndex][1] = 0;
-
             CLOSE_PIPE(process->pipe[pipeIndex], 0)
             CLOSE_PIPE(process->pipe[pipeIndex], 1)
         }
