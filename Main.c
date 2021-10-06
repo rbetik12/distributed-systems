@@ -10,7 +10,6 @@
 #include "pa1.h"
 
 struct IOInfo ioInfo;
-const int8_t processAmount = 4;
 local_id currentLocalID = 0;
 pid_t currentPID = 0;
 pid_t parentPID = 0;
@@ -73,12 +72,16 @@ bool RunChildProcess()
     return true;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+    if (argc < 3)
+    {
+        exit(EXIT_FAILURE);
+    }
     parentPID = getpid();
     currentPID = parentPID;
     memset(&ioInfo, 0, sizeof(ioInfo));
-    ioInfo.processAmount = processAmount;
+    ioInfo.processAmount = strtol(argv[2], NULL, 10) + 1;
 
     for (int processIndex = 0; processIndex < ioInfo.processAmount; processIndex++)
     {
