@@ -53,3 +53,5 @@ void WriteFormatString(Message* message, const char* format, int argsAmount, ...
 void InitMessage(Message *message);
 void InitIO(local_id* currentProcessId, struct IOInfo* ioInfo);
 void ShutdownIO(struct IOInfo* ioInfo);
+void Shutdown();
+void InitLog();

@@ -28,12 +28,10 @@ bool RunChildProcess()
     }
     ioInfo.process[0].pipe[currentLocalID][0] = 0;
 
-    Log(Event, log_started_fmt, 3, currentLocalID, currentPID, parentPID);
-
     Message message;
-
     InitMessage(&message);
     WriteFormatString(&message, log_started_fmt, 3, currentLocalID, currentPID, parentPID);
+    Log(Event, message.s_payload, 0);
     send_multicast(&ioInfo, &message);
 
     InitMessage(&message);
@@ -49,10 +47,9 @@ bool RunChildProcess()
             3, currentLocalID, processIndex, message.s_payload);
     }
 
-    Log(Event, log_done_fmt, 1, currentLocalID);
-
     InitMessage(&message);
     WriteFormatString(&message, log_done_fmt, 1, currentLocalID);
+    Log(Event, message.s_payload, 0);
     message.s_header.s_type = DONE;
     send_multicast(&ioInfo, &message);
 
@@ -78,6 +75,7 @@ int main(int argc, char* argv[])
     {
         exit(EXIT_FAILURE);
     }
+    InitLog();
     parentPID = getpid();
     currentPID = parentPID;
     memset(&ioInfo, 0, sizeof(ioInfo));
@@ -152,6 +150,7 @@ int main(int argc, char* argv[])
     }
 
     ShutdownIO(&ioInfo);
+    Shutdown();
 
     return 0;
 }

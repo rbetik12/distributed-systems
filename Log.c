@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <string.h>
 #include "common.h"
 #include "ipc.h"
 
@@ -9,11 +10,17 @@ static FILE *eventLogFile = NULL;
 static FILE *pipesLogFile = NULL;
 static bool isLogInitialized = false;
 
-void Init()
+void InitLog()
 {
     eventLogFile = fopen(events_log, "w");
     pipesLogFile = fopen(pipes_log, "w");
     isLogInitialized = true;
+}
+
+void Shutdown()
+{
+    fclose(eventLogFile);
+    fclose(pipesLogFile);
 }
 
 const char* MessageTypeToStr(MessageType type)
@@ -45,11 +52,6 @@ const char* MessageTypeToStr(MessageType type)
 
 void Log(enum LogType type, const char *format, int argsAmount, ...)
 {
-    if (!isLogInitialized)
-    {
-        Init();
-    }
-
     va_list valist;
     va_start(valist, argsAmount);
 
@@ -58,7 +60,10 @@ void Log(enum LogType type, const char *format, int argsAmount, ...)
         case Event:
         {
             vprintf(format, valist);
-            vfprintf(eventLogFile, format, valist);
+            char logStr[256];
+            memset(logStr, 0, sizeof(logStr));
+            vsnprintf(logStr, 256, format, valist);
+            fwrite(logStr, sizeof(char), strlen(logStr), eventLogFile);
             break;
         }
         case Pipe:
