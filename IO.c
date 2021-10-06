@@ -1,13 +1,28 @@
 #include "IOMisc.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 
 int SendString(struct IOInfo ioInfo, local_id destination, const char *string, Message *message)
 {
-    snprintf(message->s_payload, MAX_PAYLOAD_LEN, "%s", string);
-    message->s_header.s_payload_len = strlen(string) + 1;
+    WriteString(string, message);
 
     return send(&ioInfo, destination, message);
+}
+
+void WriteString(const char* string, Message* message)
+{
+    snprintf(message->s_payload, MAX_PAYLOAD_LEN, "%s", string);
+    message->s_header.s_payload_len = strlen(string) + 1;
+}
+
+void WriteFormatString(Message* message, const char* format, int argsAmount, ...)
+{
+    va_list valist;
+    va_start(valist, argsAmount);
+    vsnprintf(message->s_payload, MAX_PAYLOAD_LEN, format, valist);
+    message->s_header.s_payload_len = strlen(message->s_payload) + 1;
+    va_end(valist);
 }
 
 void InitMessage(Message *message)

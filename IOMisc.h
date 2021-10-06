@@ -48,6 +48,8 @@ enum LogType
 
 void Log(enum LogType type, const char *format, int argsAmount, ...);
 int SendString(struct IOInfo ioInfo, local_id destination, const char* string, Message* message);
+void WriteString(const char* string, Message* message);
+void WriteFormatString(Message* message, const char* format, int argsAmount, ...);
 void InitMessage(Message *message);
 void InitIO(local_id* currentProcessId, struct IOInfo* ioInfo);
 void ShutdownIO(struct IOInfo* ioInfo);

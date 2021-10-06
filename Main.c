@@ -30,7 +30,43 @@ bool RunChildProcess()
     ioInfo.process[0].pipe[currentLocalID][0] = 0;
 
     Log(Event, log_started_fmt, 3, currentLocalID, currentPID, parentPID);
+
+    Message message;
+
+    InitMessage(&message);
+    WriteFormatString(&message, log_started_fmt, 3, currentLocalID, currentPID, parentPID);
+    send_multicast(&ioInfo, &message);
+
+    InitMessage(&message);
+
+    for (int8_t processIndex = 1; processIndex < ioInfo.processAmount; processIndex++)
+    {
+        if (processIndex == currentLocalID)
+        {
+            continue;
+        }
+        receive(&ioInfo, processIndex, &message);
+        Log(Debug, "Process with local id: %d received message from process with local id: %d. Message: %s\n",
+            3, currentLocalID, processIndex, message.s_payload);
+    }
+
     Log(Event, log_done_fmt, 1, currentLocalID);
+
+    InitMessage(&message);
+    WriteFormatString(&message, log_done_fmt, 1, currentLocalID);
+    message.s_header.s_type = DONE;
+    send_multicast(&ioInfo, &message);
+
+    for (int8_t processIndex = 1; processIndex < ioInfo.processAmount; processIndex++)
+    {
+        if (processIndex == currentLocalID)
+        {
+            continue;
+        }
+        receive(&ioInfo, processIndex, &message);
+        Log(Debug, "Process with local id: %d received message from process with local id: %d. Message: %s\n",
+            3, currentLocalID, processIndex, message.s_payload);
+    }
 
     ShutdownIO(&ioInfo);
 
@@ -81,6 +117,31 @@ int main()
 
     ioInfo.process[0].pid = 0;
     InitIO(&currentLocalID, &ioInfo);
+
+    Message message;
+    for (int8_t processIndex = 1; processIndex < ioInfo.processAmount; processIndex++)
+    {
+        if (processIndex == currentLocalID)
+        {
+            continue;
+        }
+        InitMessage(&message);
+        receive(&ioInfo, processIndex, &message);
+        Log(Debug, "Process with local id: %d received message from process with local id: %d. Message: %s\n",
+            3, currentLocalID, processIndex, message.s_payload);
+    }
+
+    for (int8_t processIndex = 1; processIndex < ioInfo.processAmount; processIndex++)
+    {
+        if (processIndex == currentLocalID)
+        {
+            continue;
+        }
+        InitMessage(&message);
+        receive(&ioInfo, processIndex, &message);
+        Log(Debug, "Process with local id: %d received message from process with local id: %d. Message: %s\n",
+            3, currentLocalID, processIndex, message.s_payload);
+    }
 
     for (int i = 0; i < ioInfo.processAmount; i++)
     {

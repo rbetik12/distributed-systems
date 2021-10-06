@@ -90,3 +90,23 @@ int receive(void * self, local_id from, Message * msg)
     return 0;
 }
 
+int send_multicast(void * self, const Message * msg)
+{
+    struct IOInfo *ioInfo = (struct IOInfo *) self;
+    int status = 0;
+    for (int8_t processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
+    {
+        if (currentLocalID == processIndex)
+        {
+            continue;
+        }
+        status = send(ioInfo, processIndex, msg);
+        if (status != 0)
+        {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
