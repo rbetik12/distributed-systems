@@ -10,13 +10,13 @@ int SendString(struct IOInfo ioInfo, local_id destination, const char *string, M
     return send(&ioInfo, destination, message);
 }
 
-void WriteString(const char* string, Message* message)
+void WriteString(const char *string, Message *message)
 {
     snprintf(message->s_payload, MAX_PAYLOAD_LEN, "%s", string);
     message->s_header.s_payload_len = strlen(string) + 1;
 }
 
-void WriteFormatString(Message* message, const char* format, int argsAmount, ...)
+void WriteFormatString(Message *message, const char *format, int argsAmount, ...)
 {
     va_list valist;
     va_start(valist, argsAmount);
@@ -38,26 +38,30 @@ void SetupOtherProcessPipes(local_id curProcessId, struct ProcessInfo *process, 
         //If we go to current process pipe we set it to read-only mode, so current process can receive messages from other processes.
         if (pipeIndex == curProcessId)
         {
-            if (close(process->pipe[pipeIndex][1]))
-            {
-                perror("close");
-            }
-            process->pipe[pipeIndex][1] = 0;
+//            if (close(process->pipe[pipeIndex][1]))
+//            {
+//                perror("close");
+//            }
+//            process->pipe[pipeIndex][1] = 0;
+            CLOSE_PIPE(process->pipe[pipeIndex], 1)
         }
             // Otherwise, we close whole pipe, because it isn't connected to our process.
         else
         {
-            if (close(process->pipe[pipeIndex][0]))
-            {
-                perror("Close");
-            }
-            if (close(process->pipe[pipeIndex][1]))
-            {
-                perror("Close");
-            }
+//            if (close(process->pipe[pipeIndex][0]))
+//            {
+//                perror("Close");
+//            }
+//            if (close(process->pipe[pipeIndex][1]))
+//            {
+//                perror("Close");
+//            }
+//
+//            process->pipe[pipeIndex][0] = 0;
+//            process->pipe[pipeIndex][1] = 0;
 
-            process->pipe[pipeIndex][0] = 0;
-            process->pipe[pipeIndex][1] = 0;
+            CLOSE_PIPE(process->pipe[pipeIndex], 0)
+            CLOSE_PIPE(process->pipe[pipeIndex], 1)
         }
     }
 }
@@ -69,25 +73,12 @@ void SetupCurrentProcessPipes(local_id curProcessId, struct ProcessInfo *process
         // We close process self-related pipes
         if (pipeIndex == curProcessId)
         {
-            if (close(process->pipe[pipeIndex][0]) == -1)
-            {
-                perror("Close");
-            }
-            if (close(process->pipe[pipeIndex][1]) == -1)
-            {
-                perror("Close");
-            }
-            process->pipe[pipeIndex][0] = 0;
-            process->pipe[pipeIndex][1] = 0;
+            CLOSE_PIPE(process->pipe[pipeIndex], 0)
+            CLOSE_PIPE(process->pipe[pipeIndex], 1)
         } else
         {
             // We set other pipes to write-only mode. Current process will write to other processes from them.
-            if (close(process->pipe[pipeIndex][0]) == -1)
-            {
-                perror("Close");
-            }
-
-            process->pipe[pipeIndex][0] = 0;
+            CLOSE_PIPE(process->pipe[pipeIndex], 0)
         }
     }
 }
@@ -126,15 +117,6 @@ void InitIO(local_id *currentProcessId, struct IOInfo *ioInfo)
         }
     }
 }
-
-#define CLOSE_PIPE(PIPE_ARRAY, PIPE_INDEX) if (PIPE_ARRAY[PIPE_INDEX] != 0) \
-                                            {                              \
-                                                if (close(PIPE_ARRAY[PIPE_INDEX])) \
-                                                {                           \
-                                                    perror("Close in shutdown");\
-                                                } \
-                                                PIPE_ARRAY[PIPE_INDEX] = 0;    \
-                                            } \
 
 void ShutdownIO(struct IOInfo *ioInfo)
 {

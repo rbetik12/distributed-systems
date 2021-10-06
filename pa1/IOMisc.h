@@ -1,9 +1,19 @@
 #pragma once
 
 #include <unistd.h>
+#include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include "ipc.h"
+
+#define CLOSE_PIPE(PIPE_ARRAY, PIPE_INDEX) if (PIPE_ARRAY[PIPE_INDEX] != 0) \
+                                            {                              \
+                                                if (close(PIPE_ARRAY[PIPE_INDEX])) \
+                                                {                           \
+                                                    perror("Close in shutdown");\
+                                                } \
+                                                PIPE_ARRAY[PIPE_INDEX] = 0;    \
+                                            } \
 
 /*
  * How it works:
@@ -47,11 +57,19 @@ enum LogType
 };
 
 void Log(enum LogType type, const char *format, int argsAmount, ...);
-int SendString(struct IOInfo ioInfo, local_id destination, const char* string, Message* message);
-void WriteString(const char* string, Message* message);
-void WriteFormatString(Message* message, const char* format, int argsAmount, ...);
+
+int SendString(struct IOInfo ioInfo, local_id destination, const char *string, Message *message);
+
+void WriteString(const char *string, Message *message);
+
+void WriteFormatString(Message *message, const char *format, int argsAmount, ...);
+
 void InitMessage(Message *message);
-void InitIO(local_id* currentProcessId, struct IOInfo* ioInfo);
-void ShutdownIO(struct IOInfo* ioInfo);
+
+void InitIO(local_id *currentProcessId, struct IOInfo *ioInfo);
+
+void ShutdownIO(struct IOInfo *ioInfo);
+
 void Shutdown();
+
 void InitLog();

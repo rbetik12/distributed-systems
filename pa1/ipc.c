@@ -25,7 +25,8 @@ int send(void *self, local_id dst, const Message *msg)
         Log(Debug, "Process %d didn't send message header to process with local id: %d!\n", 2, getpid(), dst);
         if (writeAmount == -1)
         {
-            Log(Debug, "Process %d didn't send message header to process with local id: %d!\n Error occured: %s\n", 3, getpid(), dst, strerror(errno));
+            Log(Debug, "Process %d didn't send message header to process with local id: %d!\n Error occured: %s\n", 3,
+                getpid(), dst, strerror(errno));
         }
         return -1;
     }
@@ -37,7 +38,8 @@ int send(void *self, local_id dst, const Message *msg)
         Log(Debug, "Process %d didn't send message payload to process with local id: %d!\n", 2, getpid(), dst);
         if (writeAmount == -1)
         {
-            Log(Debug, "Process %d didn't send message payload to process with local id: %d!\n Error occured: %s\n", 3, getpid(), dst, strerror(errno));
+            Log(Debug, "Process %d didn't send message payload to process with local id: %d!\n Error occured: %s\n", 3,
+                getpid(), dst, strerror(errno));
         }
         return -1;
     }
@@ -45,10 +47,10 @@ int send(void *self, local_id dst, const Message *msg)
     return 0;
 }
 
-int receive(void * self, local_id from, Message * msg)
+int receive(void *self, local_id from, Message *msg)
 {
     struct IOInfo *ioInfo = (struct IOInfo *) self;
-    struct ProcessInfo* processInfo = &ioInfo->process[from];
+    struct ProcessInfo *processInfo = &ioInfo->process[from];
 
     //Checks if we are trying to receive message from ourselves
     if (from == currentLocalID)
@@ -64,7 +66,8 @@ int receive(void * self, local_id from, Message * msg)
         Log(Debug, "Process %d didn't receive message header from process with local id: %d!\n", 2, getpid(), from);
         if (readAmount == -1)
         {
-            Log(Debug, "Process %d didn't receive message header from process with local id: %d! Error occured: %s\n", 3, getpid(), from, strerror(errno));
+            Log(Debug, "Process %d didn't receive message header from process with local id: %d! Error occured: %s\n",
+                3, getpid(), from, strerror(errno));
         }
         return -1;
     }
@@ -82,7 +85,9 @@ int receive(void * self, local_id from, Message * msg)
         Log(Debug, "Process %d didn't receive message payload from process with local id: %d!\n", 2, getpid(), from);
         if (readAmount == -1)
         {
-            Log(Debug, "Process %d didn't receive message payload from process with local id: %d!\n Error occured: %s\n", 3, getpid(), from, strerror(errno));
+            Log(Debug,
+                "Process %d didn't receive message payload from process with local id: %d!\n Error occured: %s\n", 3,
+                getpid(), from, strerror(errno));
         }
         return -1;
     }
@@ -90,7 +95,7 @@ int receive(void * self, local_id from, Message * msg)
     return 0;
 }
 
-int send_multicast(void * self, const Message * msg)
+int send_multicast(void *self, const Message *msg)
 {
     struct IOInfo *ioInfo = (struct IOInfo *) self;
     int status = 0;

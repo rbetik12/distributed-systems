@@ -1,20 +1,17 @@
 #include "IOMisc.h"
 #include <stdio.h>
 #include <stdarg.h>
-#include <stdbool.h>
 #include <string.h>
 #include "common.h"
 #include "ipc.h"
 
 static FILE *eventLogFile = NULL;
 static FILE *pipesLogFile = NULL;
-static bool isLogInitialized = false;
 
 void InitLog()
 {
-    eventLogFile = fopen(events_log, "w");
-    pipesLogFile = fopen(pipes_log, "w");
-    isLogInitialized = true;
+    eventLogFile = fopen(events_log, "a");
+    pipesLogFile = fopen(pipes_log, "a");
 }
 
 void Shutdown()
@@ -23,7 +20,7 @@ void Shutdown()
     fclose(pipesLogFile);
 }
 
-const char* MessageTypeToStr(MessageType type)
+const char *MessageTypeToStr(MessageType type)
 {
     switch (type)
     {
@@ -38,12 +35,6 @@ const char* MessageTypeToStr(MessageType type)
         case TRANSFER:
             break;
         case BALANCE_HISTORY:
-            break;
-        case CS_REQUEST:
-            break;
-        case CS_REPLY:
-            break;
-        case CS_RELEASE:
             break;
     }
 
