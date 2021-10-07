@@ -21,12 +21,6 @@ bool RunChildProcess()
     // Mark parent process as non-zero process to determine it
     ioInfo.process[0].pid = -1;
     InitIO(&currentLocalID, &ioInfo);
-    if (close(ioInfo.process[0].pipe[currentLocalID][0]))
-    {
-        perror("Close");
-        return false;
-    }
-    ioInfo.process[0].pipe[currentLocalID][0] = 0;
 
     Message message;
     InitMessage(&message);
