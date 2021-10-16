@@ -18,27 +18,14 @@ int send(void *self, local_id dst, const Message *msg)
         Log(Debug, "Process %d trying to send message to himself!\n", 1, getpid());
         return -1;
     }
-
-    ssize_t writeAmount = write(currentProcess.pipe[dst][1], &msg->s_header, sizeof(msg->s_header));
-    if (writeAmount != sizeof(msg->s_header))
+    size_t messageSize = sizeof(Message) - (MAX_PAYLOAD_LEN - msg->s_header.s_payload_len);
+    ssize_t writeAmount = write(currentProcess.pipe[dst][1], msg, messageSize);
+    if (writeAmount != messageSize)
     {
-        Log(Debug, "Process %d didn't send message header to process with local id: %d!\n", 2, getpid(), dst);
+        Log(Debug, "Process %d didn't send message to process with local id: %d!\n", 2, getpid(), dst);
         if (writeAmount == -1)
         {
-            Log(Debug, "Process %d didn't send message header to process with local id: %d!\n Error occured: %s\n", 3,
-                getpid(), dst, strerror(errno));
-        }
-        return -1;
-    }
-
-    writeAmount = write(currentProcess.pipe[dst][1], msg->s_payload, msg->s_header.s_payload_len);
-
-    if (writeAmount != msg->s_header.s_payload_len)
-    {
-        Log(Debug, "Process %d didn't send message payload to process with local id: %d!\n", 2, getpid(), dst);
-        if (writeAmount == -1)
-        {
-            Log(Debug, "Process %d didn't send message payload to process with local id: %d!\n Error occured: %s\n", 3,
+            Log(Debug, "Process %d didn't send message to process with local id: %d! Error occured: %s\n", 3,
                 getpid(), dst, strerror(errno));
         }
         return -1;
