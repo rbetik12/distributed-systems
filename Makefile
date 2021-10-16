@@ -1,14 +1,19 @@
 CC=clang
-CFLAGS=-g -Wall -pedantic
+CFLAGS=-g -Wall -pedantic -Werror -std=c99
 
-SRC=$(wildcard pa1/*.c)
-
-all:
-	clang -g -Wall -Werror -pedantic -std=c99 pa1/*.c -o lab1
+all: pa1 pa2
+pa1:
+	$(CC) $(CFLAGS) pa1/*.c -o lab1
+pa2:
+	$(CC) $(CFLAGS) pa2/*.c -o lab2
 
 pack:
 	tar -czvf pa1.tar.gz pa1
+	tar -czvf pa2.tar.gz pa2
 
 clean:
 	rm -f lab1
-	rm -f pa1.tar.gz
+	rm -f lab2
+	rm -f *.tar.gz
+
+.PHONY: all clean pa1 pa2
