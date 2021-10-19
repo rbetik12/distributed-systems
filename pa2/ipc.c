@@ -19,7 +19,16 @@ int send(void *self, local_id dst, const Message *msg)
         return -1;
     }
     ssize_t messageSize = sizeof(Message) - (MAX_PAYLOAD_LEN - msg->s_header.s_payload_len);
-    ssize_t writeAmount = write(currentProcess.pipe[dst][1], msg, messageSize);
+    ssize_t writeAmount;
+
+    while((writeAmount = write(currentProcess.pipe[dst][1], msg, messageSize)) == -1)
+    {
+        if (errno != EAGAIN)
+        {
+            break;
+        }
+    }
+
     if (writeAmount != messageSize)
     {
         Log(Debug, "Process %d didn't send message to process with local id: %d!\n", 2, getpid(), dst);
@@ -46,11 +55,17 @@ int receive(void *self, local_id from, Message *msg)
         return -1;
     }
 
-    ssize_t readAmount = read(processInfo->pipe[currentLocalID][0], &msg->s_header, sizeof(msg->s_header));
+    ssize_t readAmount;
+    while ((readAmount = read(processInfo->pipe[currentLocalID][0], &msg->s_header, sizeof(msg->s_header))) == -1)
+    {
+        if (errno != EAGAIN)
+        {
+            break;
+        }
+    }
 
     if (readAmount != sizeof(msg->s_header))
     {
-        Log(Debug, "Process %d didn't receive message header from process with local id: %d!\n", 2, getpid(), from);
         if (readAmount == -1)
         {
             Log(Debug, "Process %d didn't receive message header from process with local id: %d! Error occured: %s\n",

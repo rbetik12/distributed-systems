@@ -66,6 +66,7 @@ int main(int argc, char *argv[])
     }
 
     InitIOParent(&ioInfo);
+    InitIONonBlocking(&ioInfo);
 
     for (int i = 1; i < ioInfo.processAmount; i++)
     {

@@ -74,6 +74,8 @@ int ReceiveAll(struct IOInfo ioInfo, local_id currentLocalID);
 
 int InitIOParent(struct IOInfo* ioInfo);
 
+int InitIONonBlocking(struct IOInfo* ioInfo);
+
 void ShutdownIO(struct IOInfo *ioInfo);
 
 void ShutdownLog();

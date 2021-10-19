@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <fcntl.h>
 
 void WriteFormatString(Message *message, const char *format, int argsAmount, ...)
 {
@@ -102,7 +103,7 @@ void ShutdownIO(struct IOInfo *ioInfo)
     }
 }
 
-int InitIOParent(struct IOInfo* ioInfo)
+int InitIOParent(struct IOInfo *ioInfo)
 {
     for (int processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
     {
@@ -135,6 +136,32 @@ int ReceiveAll(struct IOInfo ioInfo, local_id currentLocalID)
         receive(&ioInfo, processIndex, &message);
         Log(Debug, "Process with local id: %d received message from process with local id: %d. Message: %s\n",
             3, currentLocalID, processIndex, message.s_payload);
+    }
+
+    return 0;
+}
+
+int InitIONonBlocking(struct IOInfo *ioInfo)
+{
+    for (int processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
+    {
+        for (int childProcessPipeIndex = 0; childProcessPipeIndex < ioInfo->processAmount; childProcessPipeIndex++)
+        {
+            if (childProcessPipeIndex != processIndex)
+            {
+                int flags = fcntl(ioInfo->process[processIndex].pipe[childProcessPipeIndex][0], F_GETFL);
+                if (flags == -1)
+                {
+                    perror("Nonblock pipe");
+                    return -1;
+                }
+                if (fcntl(ioInfo->process[processIndex].pipe[childProcessPipeIndex][0], F_SETFL, flags | O_NONBLOCK) == -1)
+                {
+                    perror("Nonblock pipe");
+                    return -1;
+                }
+            }
+        }
     }
 
     return 0;
