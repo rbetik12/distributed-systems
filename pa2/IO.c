@@ -14,10 +14,12 @@ void WriteFormatString(Message *message, const char *format, int argsAmount, ...
     va_end(valist);
 }
 
-void InitMessage(Message *message)
+void InitMessage(Message *message, MessageType type, timestamp_t (*GetTimePtr)(void))
 {
     memset(message, 0, sizeof(Message));
     message->s_header.s_magic = MESSAGE_MAGIC;
+    message->s_header.s_local_time = GetTimePtr();
+    message->s_header.s_type = type;
 }
 
 void SetupOtherProcessPipes(local_id curProcessId, struct ProcessInfo *process, int8_t processAmount)

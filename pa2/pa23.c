@@ -24,21 +24,19 @@ bool RunChildProcess()
 
     //Start
     Message message;
-    InitMessage(&message);
-    WriteFormatString(&message, log_started_fmt, 5, 0, currentLocalID, currentPID, parentPID,
+    InitMessage(&message, STARTED, get_physical_time);
+    WriteFormatString(&message, log_started_fmt, 5, message.s_header.s_local_time, currentLocalID, currentPID, parentPID,
                       ioInfo.process[currentLocalID].balance);
     Log(Event, message.s_payload, 0);
     send_multicast(&ioInfo, &message);
-    InitMessage(&message);
     ReceiveAll(ioInfo, currentLocalID);
     //Start end
 
     //Done
-    InitMessage(&message);
-    WriteFormatString(&message, log_done_fmt, 3, get_physical_time(), currentLocalID,
+    InitMessage(&message, DONE, get_physical_time);
+    WriteFormatString(&message, log_done_fmt, 3, message.s_header.s_local_time, currentLocalID,
                       ioInfo.process[currentLocalID].balance);
     Log(Event, message.s_payload, 0);
-    message.s_header.s_type = DONE;
     send_multicast(&ioInfo, &message);
     ReceiveAll(ioInfo, currentLocalID);
     //Done end
@@ -96,7 +94,6 @@ int main(int argc, char *argv[])
     //Receive started
     ReceiveAll(ioInfo, currentLocalID);
 
-    get_physical_time();
     bank_robbery(&ioInfo, ioInfo.processAmount);
 
     // Receive done

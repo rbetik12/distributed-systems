@@ -66,7 +66,7 @@ int SendString(struct IOInfo ioInfo, local_id destination, const char *string, M
 
 void WriteFormatString(Message *message, const char *format, int argsAmount, ...);
 
-void InitMessage(Message *message);
+void InitMessage(Message *message, MessageType type, timestamp_t (*GetTimePtr)(void));
 
 void InitIO(local_id *currentProcessId, struct IOInfo *ioInfo);
 
