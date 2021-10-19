@@ -7,14 +7,16 @@
 #include "ipc.h"
 #include "banking.h"
 
-#define CLOSE_PIPE(PIPE_ARRAY, PIPE_INDEX) if (PIPE_ARRAY[PIPE_INDEX] != 0) \
-                                            {                              \
-                                                if (close(PIPE_ARRAY[PIPE_INDEX])) \
-                                                {                           \
-                                                    perror("Close in shutdown");\
-                                                } \
-                                                PIPE_ARRAY[PIPE_INDEX] = 0;    \
-                                            } \
+#define CLOSE_PIPE(PIPE_ARRAY, PIPE_INDEX) do {\
+                                                if (PIPE_ARRAY[PIPE_INDEX] != 0) \
+                                                {                              \
+                                                    if (close(PIPE_ARRAY[PIPE_INDEX])) \
+                                                    {                           \
+                                                        perror("Close in shutdown");\
+                                                    } \
+                                                    PIPE_ARRAY[PIPE_INDEX] = 0;    \
+                                                }  \
+                                            }while(0)\
 
 /*
  * How it works:

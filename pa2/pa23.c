@@ -95,6 +95,7 @@ int main(int argc, char *argv[])
     //Receive started
     ReceiveAll(ioInfo, currentLocalID);
 
+    get_physical_time();
     bank_robbery(&ioInfo, ioInfo.processAmount);
 
     // Receive done

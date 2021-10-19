@@ -4,21 +4,6 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-void WriteString(const char *string, Message *message);
-
-int SendString(struct IOInfo ioInfo, local_id destination, const char *string, Message *message)
-{
-    WriteString(string, message);
-
-    return send(&ioInfo, destination, message);
-}
-
-void WriteString(const char *string, Message *message)
-{
-    snprintf(message->s_payload, MAX_PAYLOAD_LEN, "%s", string);
-    message->s_header.s_payload_len = strlen(string) + 1;
-}
-
 void WriteFormatString(Message *message, const char *format, int argsAmount, ...)
 {
     va_list valist;
@@ -41,13 +26,13 @@ void SetupOtherProcessPipes(local_id curProcessId, struct ProcessInfo *process, 
         //If we go to current process pipe we set it to read-only mode, so current process can receive messages from other processes.
         if (pipeIndex == curProcessId)
         {
-            CLOSE_PIPE(process->pipe[pipeIndex], 1)
+            CLOSE_PIPE(process->pipe[pipeIndex], 1);
         }
             // Otherwise, we close whole pipe, because it isn't connected to our process.
         else
         {
-            CLOSE_PIPE(process->pipe[pipeIndex], 0)
-            CLOSE_PIPE(process->pipe[pipeIndex], 1)
+            CLOSE_PIPE(process->pipe[pipeIndex], 0);
+            CLOSE_PIPE(process->pipe[pipeIndex], 1);
         }
     }
 }
@@ -59,12 +44,12 @@ void SetupCurrentProcessPipes(local_id curProcessId, struct ProcessInfo *process
         // We close process self-related pipes
         if (pipeIndex == curProcessId)
         {
-            CLOSE_PIPE(process->pipe[pipeIndex], 0)
-            CLOSE_PIPE(process->pipe[pipeIndex], 1)
+            CLOSE_PIPE(process->pipe[pipeIndex], 0);
+            CLOSE_PIPE(process->pipe[pipeIndex], 1);
         } else
         {
             // We set other pipes to write-only mode. Current process will write to other processes from them.
-            CLOSE_PIPE(process->pipe[pipeIndex], 0)
+            CLOSE_PIPE(process->pipe[pipeIndex], 0);
         }
     }
 }
@@ -111,8 +96,8 @@ void ShutdownIO(struct IOInfo *ioInfo)
         struct ProcessInfo processInfo = ioInfo->process[processIndex];
         for (int8_t pipeIndex = 0; pipeIndex < ioInfo->processAmount; pipeIndex++)
         {
-            CLOSE_PIPE(processInfo.pipe[pipeIndex], 0)
-            CLOSE_PIPE(processInfo.pipe[pipeIndex], 1)
+            CLOSE_PIPE(processInfo.pipe[pipeIndex], 0);
+            CLOSE_PIPE(processInfo.pipe[pipeIndex], 1);
         }
     }
 }

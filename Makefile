@@ -4,8 +4,9 @@ CFLAGS=-g -Wall -pedantic -Werror -std=c99
 all: pa1 pa2
 pa1:
 	$(CC) $(CFLAGS) pa1/*.c -o lab1
+
 pa2:
-	$(CC) $(CFLAGS) pa2/*.c -o lab2
+	$(CC) $(CFLAGS) pa2/*.c -o lab2 -L./pa2/ -lruntime
 
 pack:
 	tar -czvf pa1.tar.gz pa1
