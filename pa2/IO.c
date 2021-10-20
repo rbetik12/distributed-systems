@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <errno.h>
 
 void WriteFormatString(Message *message, const char *format, int argsAmount, ...)
 {
@@ -135,7 +136,12 @@ int ReceiveAll(struct IOInfo ioInfo, local_id currentLocalID)
         {
             continue;
         }
-        receive(&ioInfo, processIndex, &message);
+        int retVal;
+        while ((retVal = receive(&ioInfo, processIndex, &message) == EAGAIN));
+        if (retVal)
+        {
+            return -1;
+        }
         Log(Debug, "Process with local id: %d received message from process with local id: %d. Message: %s\n",
             3, currentLocalID, processIndex, message.s_payload);
     }

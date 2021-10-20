@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #include <stdbool.h>
 #include <string.h>
+#include <errno.h>
 #include "IOMisc.h"
 #include "ipc.h"
 #include "pa2345.h"
@@ -32,10 +33,18 @@ bool RunChildProcess()
     ReceiveAll(ioInfo, currentLocalID);
     //Start end
 
-    receive(&ioInfo, PARENT_ID, &message);
-    if (message.s_header.s_type == STOP)
+    while (true)
     {
-        Log(Debug, "Process with local id (%d) received STOP message\n", 1, currentLocalID);
+        int retVal = receive(&ioInfo, PARENT_ID, &message);
+        if (retVal == EAGAIN)
+        {
+            continue;
+        }
+        if (message.s_header.s_type == STOP)
+        {
+            Log(Debug, "Process with local id (%d) received STOP message\n", 1, currentLocalID);
+            break;
+        }
     }
     //Done
     InitMessage(&message, DONE, get_physical_time);
