@@ -21,6 +21,7 @@ int send(void *self, local_id dst, const Message *msg)
     ssize_t messageSize = sizeof(Message) - (MAX_PAYLOAD_LEN - msg->s_header.s_payload_len);
     ssize_t writeAmount;
 
+    //TODO Make real nonblock. If error is EAGAIN return to caller with this error
     while((writeAmount = write(currentProcess.pipe[dst][1], msg, messageSize)) == -1)
     {
         if (errno != EAGAIN)
@@ -56,6 +57,7 @@ int receive(void *self, local_id from, Message *msg)
     }
 
     ssize_t readAmount;
+    //TODO Make real nonblock. If error is EAGAIN return to caller with this error
     while ((readAmount = read(processInfo->pipe[currentLocalID][0], &msg->s_header, sizeof(msg->s_header))) == -1)
     {
         if (errno != EAGAIN)

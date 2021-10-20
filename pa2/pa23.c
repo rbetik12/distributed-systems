@@ -32,6 +32,11 @@ bool RunChildProcess()
     ReceiveAll(ioInfo, currentLocalID);
     //Start end
 
+    receive(&ioInfo, PARENT_ID, &message);
+    if (message.s_header.s_type == STOP)
+    {
+        Log(Debug, "Process with local id (%d) received STOP message\n", 1, currentLocalID);
+    }
     //Done
     InitMessage(&message, DONE, get_physical_time);
     WriteFormatString(&message, log_done_fmt, 3, message.s_header.s_local_time, currentLocalID,
@@ -95,6 +100,10 @@ int main(int argc, char *argv[])
     ReceiveAll(ioInfo, currentLocalID);
 
     bank_robbery(&ioInfo, ioInfo.processAmount);
+
+    Message message;
+    InitMessage(&message, STOP, get_physical_time);
+    send_multicast(&ioInfo, &message);
 
     // Receive done
     ReceiveAll(ioInfo, currentLocalID);
