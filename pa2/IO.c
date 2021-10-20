@@ -143,6 +143,23 @@ int ReceiveAll(struct IOInfo ioInfo, local_id currentLocalID)
     return 0;
 }
 
+int SetPipeToNonBlocking(int pipeFd)
+{
+    int flags = fcntl(pipeFd, F_GETFL);
+    if (flags == -1)
+    {
+        perror("Nonblock pipe");
+        return -1;
+    }
+    if (fcntl(pipeFd, F_SETFL, flags | O_NONBLOCK) == -1)
+    {
+        perror("Nonblock pipe");
+        return -1;
+    }
+
+    return 0;
+}
+
 int InitIONonBlocking(struct IOInfo *ioInfo)
 {
     for (int processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
@@ -151,15 +168,12 @@ int InitIONonBlocking(struct IOInfo *ioInfo)
         {
             if (childProcessPipeIndex != processIndex)
             {
-                int flags = fcntl(ioInfo->process[processIndex].pipe[childProcessPipeIndex][0], F_GETFL);
-                if (flags == -1)
+                if (SetPipeToNonBlocking(ioInfo->process[processIndex].pipe[childProcessPipeIndex][0]) == -1)
                 {
-                    perror("Nonblock pipe");
                     return -1;
                 }
-                if (fcntl(ioInfo->process[processIndex].pipe[childProcessPipeIndex][0], F_SETFL, flags | O_NONBLOCK) == -1)
+                if (SetPipeToNonBlocking(ioInfo->process[processIndex].pipe[childProcessPipeIndex][1]) == -1)
                 {
-                    perror("Nonblock pipe");
                     return -1;
                 }
             }
