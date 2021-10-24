@@ -145,8 +145,8 @@ int ReceiveAll(struct IOInfo ioInfo, local_id currentLocalID)
         {
             return -1;
         }
-        Log(Debug, "Process with local id: %d received message from process with local id: %d. Message: %s\n",
-            3, currentLocalID, processIndex, message.s_payload);
+//        Log(Debug, "Process with local id: %d received message from process with local id: %d. Message: %s\n",
+//            3, currentLocalID, processIndex, message.s_payload);
     }
 
     return 0;
@@ -190,4 +190,10 @@ int InitIONonBlocking(struct IOInfo *ioInfo)
     }
 
     return 0;
+}
+
+void CopyToMessage(Message *message, void* data, size_t dataSize)
+{
+    memcpy(message->s_payload, data, dataSize);
+    message->s_header.s_payload_len = dataSize;
 }

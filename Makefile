@@ -17,4 +17,4 @@ clean:
 	rm -f lab2
 	rm -f *.tar.gz
 
-.PHONY: all clean pa1 pa2
+#.PHONY: all clean pa1 pa2

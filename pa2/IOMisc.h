@@ -81,3 +81,5 @@ void ShutdownIO(struct IOInfo *ioInfo);
 void ShutdownLog();
 
 void InitLog();
+
+void CopyToMessage(Message *message, void* data, size_t dataSize);

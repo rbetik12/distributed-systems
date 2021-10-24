@@ -15,6 +15,26 @@ local_id currentLocalID = 0;
 pid_t currentPID = 0;
 pid_t parentPID = 0;
 
+void ProcessTransfer(Message *message)
+{
+    TransferOrder order;
+    memcpy(&order, message->s_payload, sizeof(order));
+
+    if (currentLocalID == order.s_src)
+    {
+        ioInfo.process[currentLocalID].balance -= order.s_amount;
+        send(&ioInfo, order.s_dst, message);
+    }
+    else if (currentLocalID == order.s_dst)
+    {
+        ioInfo.process[currentLocalID].balance += order.s_amount;
+        Message ackMessage;
+        InitMessage(&ackMessage, ACK, get_physical_time);
+
+        send(&ioInfo, PARENT_ID, &ackMessage);
+    }
+}
+
 bool RunChildProcess()
 {
     currentPID = getpid();
@@ -33,17 +53,28 @@ bool RunChildProcess()
     ReceiveAll(ioInfo, currentLocalID);
     //Start end
 
-    while (true)
+    bool isRunning = true;
+    while (isRunning)
     {
-        int retVal = receive(&ioInfo, PARENT_ID, &message);
+        InitMessage(&message, STARTED, get_physical_time);
+        int retVal = receive_any(&ioInfo, &message);
         if (retVal == EAGAIN)
         {
             continue;
         }
-        if (message.s_header.s_type == STOP)
+        switch (message.s_header.s_type)
         {
-            Log(Debug, "Process with local id (%d) received STOP message\n", 1, currentLocalID);
-            break;
+            case STOP:
+            {
+                Log(Debug, "Process with local id (%d) received STOP message\n", 1, currentLocalID);
+                isRunning = false;
+                break;
+            }
+            case TRANSFER:
+            {
+                ProcessTransfer(&message);
+                break;
+            }
         }
     }
     //Done
@@ -108,7 +139,8 @@ int main(int argc, char *argv[])
     //Receive started
     ReceiveAll(ioInfo, currentLocalID);
 
-    bank_robbery(&ioInfo, ioInfo.processAmount);
+//    bank_robbery(&ioInfo, ioInfo.processAmount);
+    transfer(&ioInfo, 1, 2, 1);
 
     Message message;
     InitMessage(&message, STOP, get_physical_time);
