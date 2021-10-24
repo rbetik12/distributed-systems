@@ -15,10 +15,13 @@ local_id currentLocalID = 0;
 pid_t currentPID = 0;
 pid_t parentPID = 0;
 
-void ProcessTransfer(Message *message)
+BalanceHistory balanceHistory;
+
+void ProcessTransfer(Message *message, timestamp_t (*GetTimePtr)(void))
 {
     TransferOrder order;
     memcpy(&order, message->s_payload, sizeof(order));
+    balanceHistory.s_history_len += 1;
 
     if (currentLocalID == order.s_src)
     {
@@ -33,6 +36,9 @@ void ProcessTransfer(Message *message)
 
         send(&ioInfo, PARENT_ID, &ackMessage);
     }
+
+    balanceHistory.s_history[balanceHistory.s_history_len - 1].s_time = GetTimePtr();
+    balanceHistory.s_history[balanceHistory.s_history_len - 1].s_balance = ioInfo.process[currentLocalID].balance;
 }
 
 bool RunChildProcess()
@@ -42,7 +48,8 @@ bool RunChildProcess()
     // Mark parent process as non-zero process to determine it
     ioInfo.process[0].pid = -1;
     InitIO(&currentLocalID, &ioInfo);
-
+    memset(&balanceHistory, 0, sizeof(balanceHistory));
+    balanceHistory.s_id = currentLocalID;
     //Start
     Message message;
     InitMessage(&message, STARTED, get_physical_time);
@@ -72,12 +79,16 @@ bool RunChildProcess()
             }
             case TRANSFER:
             {
-                ProcessTransfer(&message);
+                ProcessTransfer(&message, get_physical_time);
                 break;
             }
         }
     }
     //Done
+    InitMessage(&message, BALANCE_HISTORY, get_physical_time);
+    CopyToMessage(&message, &balanceHistory, sizeof(balanceHistory));
+    send(&ioInfo, PARENT_ID, &message);
+
     InitMessage(&message, DONE, get_physical_time);
     WriteFormatString(&message, log_done_fmt, 3, message.s_header.s_local_time, currentLocalID,
                       ioInfo.process[currentLocalID].balance);
@@ -144,6 +155,19 @@ int main(int argc, char *argv[])
     Message message;
     InitMessage(&message, STOP, get_physical_time);
     send_multicast(&ioInfo, &message);
+
+    AllHistory history;
+    memset(&history, 0, sizeof(history));
+
+    for (local_id id = 1; id < ioInfo.processAmount; id++) {
+        InitMessage(&message, BALANCE_HISTORY, get_physical_time);
+        while (receive(&ioInfo, id, &message) == EAGAIN);
+
+        history.s_history_len += 1;
+        memcpy(&history.s_history[id - 1], message.s_payload, sizeof(BalanceHistory));
+    }
+
+    print_history(&history);
 
     // Receive done
     ReceiveAll(ioInfo, currentLocalID);
