@@ -21,7 +21,7 @@ int send(void *self, local_id dst, const Message *msg)
     ssize_t messageSize = sizeof(Message) - (MAX_PAYLOAD_LEN - msg->s_header.s_payload_len);
     ssize_t writeAmount;
 
-    while((writeAmount = write(currentProcess.pipe[dst][1], msg, messageSize)) == -1)
+    while ((writeAmount = write(currentProcess.pipe[dst][1], msg, messageSize)) == -1)
     {
         if (errno != EAGAIN)
         {
@@ -112,5 +112,28 @@ int send_multicast(void *self, const Message *msg)
     }
 
     return 0;
+}
+
+int receive_any(void *self, Message *msg)
+{
+    struct IOInfo *ioInfo = (struct IOInfo *) self;
+    int status = 0;
+    for (int8_t processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
+    {
+        if (currentLocalID == processIndex)
+        {
+            continue;
+        }
+        status = receive(ioInfo, processIndex, msg);
+        switch (status)
+        {
+            case EAGAIN:
+                continue;
+            default:
+                return status;
+        }
+    }
+
+    return EAGAIN;
 }
 
