@@ -139,8 +139,7 @@ int main(int argc, char *argv[])
     //Receive started
     ReceiveAll(ioInfo, currentLocalID);
 
-//    bank_robbery(&ioInfo, ioInfo.processAmount);
-    transfer(&ioInfo, 1, 2, 1);
+    bank_robbery(&ioInfo, ioInfo.processAmount - 1);
 
     Message message;
     InitMessage(&message, STOP, get_physical_time);

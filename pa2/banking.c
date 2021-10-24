@@ -1,6 +1,5 @@
 #include "banking.h"
 #include <errno.h>
-#include <string.h>
 #include "IOMisc.h"
 
 void transfer(void * parentData, local_id src, local_id dst, balance_t amount)
