@@ -186,6 +186,7 @@ int main(int argc, char *argv[])
 
         history.s_history_len += 1;
         memcpy(&history.s_history[id - 1], message.s_payload, sizeof(BalanceHistory));
+        history.s_history[id - 1].s_history_len = ioInfo.processAmount;
     }
 
     print_history(&history);
