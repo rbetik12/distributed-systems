@@ -1,6 +1,7 @@
 #include "banking.h"
 #include <errno.h>
 #include "Utils.h"
+#include "IPCWrapper.h"
 
 void transfer(void * parentData, local_id src, local_id dst, balance_t amount)
 {
@@ -13,7 +14,7 @@ void transfer(void * parentData, local_id src, local_id dst, balance_t amount)
     InitMessage(&message, TRANSFER);
     CopyToMessage(&message, &order, sizeof(order));
 
-    int status = send(parentData, src, &message);
+    int status = SendWrapper(parentData, src, &message);
     if (status == -1)
     {
         Log(Debug, "Can't send transfer from %d to %d!\n", 2, src, dst);

@@ -9,6 +9,7 @@
 #include "Utils.h"
 #include "ipc.h"
 #include "pa2345.h"
+#include "IPCWrapper.h"
 
 IPCInfo ipcInfo;
 local_id currentLocalID = 0;
@@ -49,14 +50,14 @@ void ProcessTransfer(Message *message)
     if (currentLocalID == order.s_src)
     {
         ipcInfo.process[currentLocalID].balance -= order.s_amount;
-        send(&ipcInfo, order.s_dst, message);
+        SendWrapper(&ipcInfo, order.s_dst, message);
     } else if (currentLocalID == order.s_dst)
     {
         ipcInfo.process[currentLocalID].balance += order.s_amount;
         Message ackMessage;
         InitMessage(&ackMessage, ACK);
 
-        send(&ipcInfo, PARENT_ID, &ackMessage);
+        SendWrapper(&ipcInfo, PARENT_ID, &ackMessage);
     }
 
     CheckHistory(get_lamport_time, 1);
@@ -82,7 +83,7 @@ bool RunChildProcess()
     Log(Event, message.s_payload, 0);
 
     CheckHistory(get_lamport_time, 0);
-    send_multicast(&ipcInfo, &message);
+    SendMulticastWrapper(&ipcInfo, &message);
     ReceiveAll(&ipcInfo, currentLocalID);
     //Start end
 
@@ -114,13 +115,13 @@ bool RunChildProcess()
     //Done
     InitMessage(&message, BALANCE_HISTORY);
     CopyToMessage(&message, &balanceHistoryWrapper.balanceHistory, sizeof(balanceHistoryWrapper.balanceHistory));
-    send(&ipcInfo, PARENT_ID, &message);
+    SendWrapper(&ipcInfo, PARENT_ID, &message);
 
     InitMessage(&message, DONE);
     WriteFormatStringToMessage(&message, log_done_fmt, 3, message.s_header.s_local_time, currentLocalID,
                       ipcInfo.process[currentLocalID].balance);
     Log(Event, message.s_payload, 0);
-    send_multicast(&ipcInfo, &message);
+    SendMulticastWrapper(&ipcInfo, &message);
     ReceiveAll(&ipcInfo, currentLocalID);
     //Done end
 
@@ -181,7 +182,7 @@ int main(int argc, char *argv[])
 
     Message message;
     InitMessage(&message, STOP);
-    send_multicast(&ipcInfo, &message);
+    SendMulticastWrapper(&ipcInfo, &message);
 
     AllHistory history;
     memset(&history, 0, sizeof(history));

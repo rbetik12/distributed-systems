@@ -6,11 +6,28 @@
 
 extern local_id currentLocalID;
 
+void IncAndSetLamportTime(IPCInfo *ipcInfo, Message * msg)
+{
+    ipcInfo->currentLamportTime += 1;
+    msg->s_header.s_local_time = get_lamport_time();
+}
+
+int SendWrapper(IPCInfo *ipcInfo, local_id dst, Message * msg)
+{
+    IncAndSetLamportTime(ipcInfo, msg);
+    return send(ipcInfo, dst, msg);
+}
+
+int SendMulticastWrapper(IPCInfo *ipcInfo, Message * msg)
+{
+    IncAndSetLamportTime(ipcInfo, msg);
+    return send_multicast(ipcInfo, msg);
+}
+
 int send(void *self, local_id dst, const Message *msg)
 {
     IPCInfo *ipcInfo = (IPCInfo *) self;
     struct ProcessInfo currentProcess = ipcInfo->process[currentLocalID];
-
     //Checks if we send message to ourselves
     if (dst == currentLocalID)
     {
@@ -88,6 +105,11 @@ int receive(void *self, local_id from, Message *msg)
                 getpid(), from, strerror(errno));
         }
         return -1;
+    }
+
+    if (msg->s_header.s_local_time > ipcInfo->currentLamportTime)
+    {
+        ipcInfo->currentLamportTime = msg->s_header.s_local_time;
     }
 
     return 0;
