@@ -1,6 +1,6 @@
 #include "banking.h"
 #include <errno.h>
-#include "IOMisc.h"
+#include "Utils.h"
 
 void transfer(void * parentData, local_id src, local_id dst, balance_t amount)
 {
@@ -10,7 +10,7 @@ void transfer(void * parentData, local_id src, local_id dst, balance_t amount)
     order.s_amount = amount;
 
     Message message;
-    InitMessage(&message, TRANSFER, get_physical_time);
+    InitMessage(&message, TRANSFER);
     CopyToMessage(&message, &order, sizeof(order));
 
     int status = send(parentData, src, &message);
@@ -23,10 +23,5 @@ void transfer(void * parentData, local_id src, local_id dst, balance_t amount)
     if (status == -1)
     {
         Log(Debug, "Can't receive ACK from %d!\n", 1, dst);
-    }
-
-    if (message.s_header.s_type == ACK)
-    {
-        Log(Debug, "Parent process received ACK from %d!\n", 1, dst);
     }
 }

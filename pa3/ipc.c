@@ -2,14 +2,14 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include "IOMisc.h"
+#include "Utils.h"
 
 extern local_id currentLocalID;
 
 int send(void *self, local_id dst, const Message *msg)
 {
-    struct IOInfo *ioInfo = (struct IOInfo *) self;
-    struct ProcessInfo currentProcess = ioInfo->process[currentLocalID];
+    IPCInfo *ipcInfo = (IPCInfo *) self;
+    struct ProcessInfo currentProcess = ipcInfo->process[currentLocalID];
 
     //Checks if we send message to ourselves
     if (dst == currentLocalID)
@@ -44,8 +44,8 @@ int send(void *self, local_id dst, const Message *msg)
 
 int receive(void *self, local_id from, Message *msg)
 {
-    struct IOInfo *ioInfo = (struct IOInfo *) self;
-    struct ProcessInfo *processInfo = &ioInfo->process[from];
+    IPCInfo *ipcInfo = (IPCInfo *) self;
+    struct ProcessInfo *processInfo = &ipcInfo->process[from];
 
     //Checks if we are trying to receive message from ourselves
     if (from == currentLocalID)
@@ -95,15 +95,15 @@ int receive(void *self, local_id from, Message *msg)
 
 int send_multicast(void *self, const Message *msg)
 {
-    struct IOInfo *ioInfo = (struct IOInfo *) self;
+    IPCInfo *ipcInfo = (IPCInfo *) self;
     int status = 0;
-    for (int8_t processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
+    for (int8_t processIndex = 0; processIndex < ipcInfo->processAmount; processIndex++)
     {
         if (currentLocalID == processIndex)
         {
             continue;
         }
-        status = send(ioInfo, processIndex, msg);
+        status = send(ipcInfo, processIndex, msg);
         if (status != 0)
         {
             return -1;
@@ -115,15 +115,15 @@ int send_multicast(void *self, const Message *msg)
 
 int receive_any(void *self, Message *msg)
 {
-    struct IOInfo *ioInfo = (struct IOInfo *) self;
+    IPCInfo *ipcInfo = (IPCInfo *) self;
     int status = 0;
-    for (int8_t processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
+    for (int8_t processIndex = 0; processIndex < ipcInfo->processAmount; processIndex++)
     {
         if (currentLocalID == processIndex)
         {
             continue;
         }
-        status = receive(ioInfo, processIndex, msg);
+        status = receive(ipcInfo, processIndex, msg);
         switch (status)
         {
             case EAGAIN:

@@ -6,14 +6,19 @@
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
-#include "IOMisc.h"
+#include "Utils.h"
 #include "ipc.h"
 #include "pa2345.h"
 
-struct IOInfo ioInfo;
+IPCInfo ipcInfo;
 local_id currentLocalID = 0;
 pid_t currentPID = 0;
 pid_t parentPID = 0;
+
+timestamp_t get_lamport_time()
+{
+    return ipcInfo.currentLamportTime;
+}
 
 typedef struct BalanceHistoryWrapper
 {
@@ -30,7 +35,7 @@ void CheckHistory(timestamp_t (*GetTimePtr)(void), int isEvent)
     if (isEvent || balanceHistoryWrapper.balanceHistory.s_history[historyIndex].s_balance == 0)
     {
         balanceHistoryWrapper.balanceHistory.s_history[historyIndex].s_time = historyIndex;
-        balanceHistoryWrapper.balanceHistory.s_history[historyIndex].s_balance = ioInfo.process[currentLocalID].balance;
+        balanceHistoryWrapper.balanceHistory.s_history[historyIndex].s_balance = ipcInfo.process[currentLocalID].balance;
         balanceHistoryWrapper.balanceHistory.s_history_len += 1;
         balanceHistoryWrapper.isSetByEvent[historyIndex] = isEvent;
     }
@@ -43,18 +48,18 @@ void ProcessTransfer(Message *message)
 
     if (currentLocalID == order.s_src)
     {
-        ioInfo.process[currentLocalID].balance -= order.s_amount;
-        send(&ioInfo, order.s_dst, message);
+        ipcInfo.process[currentLocalID].balance -= order.s_amount;
+        send(&ipcInfo, order.s_dst, message);
     } else if (currentLocalID == order.s_dst)
     {
-        ioInfo.process[currentLocalID].balance += order.s_amount;
+        ipcInfo.process[currentLocalID].balance += order.s_amount;
         Message ackMessage;
-        InitMessage(&ackMessage, ACK, get_physical_time);
+        InitMessage(&ackMessage, ACK);
 
-        send(&ioInfo, PARENT_ID, &ackMessage);
+        send(&ipcInfo, PARENT_ID, &ackMessage);
     }
 
-    CheckHistory(get_physical_time, 1);
+    CheckHistory(get_lamport_time, 1);
 }
 
 bool RunChildProcess()
@@ -62,29 +67,31 @@ bool RunChildProcess()
     currentPID = getpid();
 
     // Mark parent process as non-zero process to determine it
-    ioInfo.process[0].pid = -1;
-    InitIO(&currentLocalID, &ioInfo);
+    ipcInfo.process[0].pid = -1;
+    InitIO(&currentLocalID, &ipcInfo);
     memset(&balanceHistoryWrapper, 0, sizeof(balanceHistoryWrapper));
     balanceHistoryWrapper.balanceHistory.s_id = currentLocalID;
     balanceHistoryWrapper.balanceHistory.s_history_len = 1;
-    balanceHistoryWrapper.balanceHistory.s_history[0].s_balance = ioInfo.process[currentLocalID].balance;
+    balanceHistoryWrapper.balanceHistory.s_history[0].s_balance = ipcInfo.process[currentLocalID].balance;
     //Start
     Message message;
-    InitMessage(&message, STARTED, get_physical_time);
-    WriteFormatString(&message, log_started_fmt, 5, message.s_header.s_local_time, currentLocalID, currentPID,
+    InitMessage(&message, STARTED);
+    WriteFormatStringToMessage(&message, log_started_fmt, 5, message.s_header.s_local_time, currentLocalID, currentPID,
                       parentPID,
-                      ioInfo.process[currentLocalID].balance);
+                      ipcInfo.process[currentLocalID].balance);
     Log(Event, message.s_payload, 0);
-    send_multicast(&ioInfo, &message);
-    ReceiveAll(ioInfo, currentLocalID);
+
+    CheckHistory(get_lamport_time, 0);
+    send_multicast(&ipcInfo, &message);
+    ReceiveAll(&ipcInfo, currentLocalID);
     //Start end
 
     bool isRunning = true;
     while (isRunning)
     {
-        CheckHistory(get_physical_time, 0);
-        InitMessage(&message, STARTED, get_physical_time);
-        int retVal = receive_any(&ioInfo, &message);
+        CheckHistory(get_lamport_time, 0);
+        InitMessage(&message, STARTED);
+        int retVal = receive_any(&ipcInfo, &message);
         if (retVal == EAGAIN)
         {
             continue;
@@ -105,19 +112,19 @@ bool RunChildProcess()
         }
     }
     //Done
-    InitMessage(&message, BALANCE_HISTORY, get_physical_time);
+    InitMessage(&message, BALANCE_HISTORY);
     CopyToMessage(&message, &balanceHistoryWrapper.balanceHistory, sizeof(balanceHistoryWrapper.balanceHistory));
-    send(&ioInfo, PARENT_ID, &message);
+    send(&ipcInfo, PARENT_ID, &message);
 
-    InitMessage(&message, DONE, get_physical_time);
-    WriteFormatString(&message, log_done_fmt, 3, message.s_header.s_local_time, currentLocalID,
-                      ioInfo.process[currentLocalID].balance);
+    InitMessage(&message, DONE);
+    WriteFormatStringToMessage(&message, log_done_fmt, 3, message.s_header.s_local_time, currentLocalID,
+                      ipcInfo.process[currentLocalID].balance);
     Log(Event, message.s_payload, 0);
-    send_multicast(&ioInfo, &message);
-    ReceiveAll(ioInfo, currentLocalID);
+    send_multicast(&ipcInfo, &message);
+    ReceiveAll(&ipcInfo, currentLocalID);
     //Done end
 
-    ShutdownIO(&ioInfo);
+    ShutdownIO(&ipcInfo);
 
     return true;
 }
@@ -131,21 +138,21 @@ int main(int argc, char *argv[])
     InitLog();
     parentPID = getpid();
     currentPID = parentPID;
-    memset(&ioInfo, 0, sizeof(ioInfo));
-    ioInfo.processAmount = strtol(argv[2], NULL, 10) + 1;
+    memset(&ipcInfo, 0, sizeof(ipcInfo));
+    ipcInfo.processAmount = strtol(argv[2], NULL, 10) + 1;
 
-    for (int i = 1; i < ioInfo.processAmount; i++)
+    for (int i = 1; i < ipcInfo.processAmount; i++)
     {
-        ioInfo.process[i].balance = strtol(argv[2 + i], NULL, 10);
+        ipcInfo.process[i].balance = strtol(argv[2 + i], NULL, 10);
     }
 
-    InitIOParent(&ioInfo);
-    InitIONonBlocking(&ioInfo);
+    InitIOParent(&ipcInfo);
+    InitIONonBlocking(&ipcInfo);
 
-    for (int i = 1; i < ioInfo.processAmount; i++)
+    for (int i = 1; i < ipcInfo.processAmount; i++)
     {
-        ioInfo.process[i].pid = fork();
-        switch (ioInfo.process[i].pid)
+        ipcInfo.process[i].pid = fork();
+        switch (ipcInfo.process[i].pid)
         {
             case -1:
             {
@@ -164,42 +171,42 @@ int main(int argc, char *argv[])
         }
     }
 
-    ioInfo.process[0].pid = 0;
-    InitIO(&currentLocalID, &ioInfo);
+    ipcInfo.process[0].pid = 0;
+    InitIO(&currentLocalID, &ipcInfo);
 
     //Receive started
-    ReceiveAll(ioInfo, currentLocalID);
+    ReceiveAll(&ipcInfo, currentLocalID);
 
-    bank_robbery(&ioInfo, ioInfo.processAmount - 1);
+    bank_robbery(&ipcInfo, ipcInfo.processAmount - 1);
 
     Message message;
-    InitMessage(&message, STOP, get_physical_time);
-    send_multicast(&ioInfo, &message);
+    InitMessage(&message, STOP);
+    send_multicast(&ipcInfo, &message);
 
     AllHistory history;
     memset(&history, 0, sizeof(history));
 
-    for (local_id id = 1; id < ioInfo.processAmount; id++)
+    for (local_id id = 1; id < ipcInfo.processAmount; id++)
     {
-        InitMessage(&message, BALANCE_HISTORY, get_physical_time);
-        while (receive(&ioInfo, id, &message) == EAGAIN);
+        InitMessage(&message, BALANCE_HISTORY);
+        while (receive(&ipcInfo, id, &message) == EAGAIN);
 
         history.s_history_len += 1;
         memcpy(&history.s_history[id - 1], message.s_payload, sizeof(BalanceHistory));
-        history.s_history[id - 1].s_history_len = ioInfo.processAmount;
+        history.s_history[id - 1].s_history_len = ipcInfo.processAmount;
     }
 
     print_history(&history);
 
     // Receive done
-    ReceiveAll(ioInfo, currentLocalID);
+    ReceiveAll(&ipcInfo, currentLocalID);
 
-    for (int i = 0; i < ioInfo.processAmount; i++)
+    for (int i = 0; i < ipcInfo.processAmount; i++)
     {
-        wait(&ioInfo.process[i].pid);
+        wait(&ipcInfo.process[i].pid);
     }
 
-    ShutdownIO(&ioInfo);
+    ShutdownIO(&ipcInfo);
     ShutdownLog();
 
     return 0;

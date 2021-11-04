@@ -1,4 +1,4 @@
-#include "IOMisc.h"
+#include "Utils.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -6,7 +6,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-void WriteFormatString(Message *message, const char *format, int argsAmount, ...)
+void WriteFormatStringToMessage(Message *message, const char *format, int argsAmount, ...)
 {
     va_list valist;
     va_start(valist, argsAmount);
@@ -15,15 +15,11 @@ void WriteFormatString(Message *message, const char *format, int argsAmount, ...
     va_end(valist);
 }
 
-void InitMessage(Message *message, MessageType type, timestamp_t (*GetTimePtr)(void))
+void InitMessage(Message *message, MessageType type)
 {
     memset(message, 0, sizeof(Message));
     message->s_header.s_magic = MESSAGE_MAGIC;
     message->s_header.s_type = type;
-    if (GetTimePtr)
-    {
-        message->s_header.s_local_time = GetTimePtr();
-    }
 }
 
 void SetupOtherProcessPipes(local_id curProcessId, struct ProcessInfo *process, int8_t processAmount)
@@ -61,47 +57,47 @@ void SetupCurrentProcessPipes(local_id curProcessId, struct ProcessInfo *process
     }
 }
 
-void SetupProcessPipes(local_id curProcessId, struct ProcessInfo *processInfo, struct IOInfo *ioInfo, bool isCurrent)
+void SetupProcessPipes(local_id curProcessId, struct ProcessInfo *processInfo, IPCInfo *ipcInfo, bool isCurrent)
 {
     if (isCurrent)
     {
-        SetupCurrentProcessPipes(curProcessId, processInfo, ioInfo->processAmount);
+        SetupCurrentProcessPipes(curProcessId, processInfo, ipcInfo->processAmount);
     } else
     {
-        SetupOtherProcessPipes(curProcessId, processInfo, ioInfo->processAmount);
+        SetupOtherProcessPipes(curProcessId, processInfo, ipcInfo->processAmount);
     }
 }
 
-void InitIO(local_id *currentProcessId, struct IOInfo *ioInfo)
+void InitIO(local_id *currentProcessId, IPCInfo *ipcInfo)
 {
-    for (int8_t processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
+    for (int8_t processIndex = 0; processIndex < ipcInfo->processAmount; processIndex++)
     {
-        struct ProcessInfo *process = &ioInfo->process[processIndex];
+        struct ProcessInfo *process = &ipcInfo->process[processIndex];
         if (process->pid == 0)
         {
             *currentProcessId = processIndex;
             break;
         }
     }
-    for (int8_t processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
+    for (int8_t processIndex = 0; processIndex < ipcInfo->processAmount; processIndex++)
     {
-        struct ProcessInfo *process = &ioInfo->process[processIndex];
+        struct ProcessInfo *process = &ipcInfo->process[processIndex];
         if (process->pid == 0)
         {
-            SetupProcessPipes(*currentProcessId, process, ioInfo, true);
+            SetupProcessPipes(*currentProcessId, process, ipcInfo, true);
         } else
         {
-            SetupProcessPipes(*currentProcessId, process, ioInfo, false);
+            SetupProcessPipes(*currentProcessId, process, ipcInfo, false);
         }
     }
 }
 
-void ShutdownIO(struct IOInfo *ioInfo)
+void ShutdownIO(IPCInfo *ipcInfo)
 {
-    for (int8_t processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
+    for (int8_t processIndex = 0; processIndex < ipcInfo->processAmount; processIndex++)
     {
-        struct ProcessInfo processInfo = ioInfo->process[processIndex];
-        for (int8_t pipeIndex = 0; pipeIndex < ioInfo->processAmount; pipeIndex++)
+        struct ProcessInfo processInfo = ipcInfo->process[processIndex];
+        for (int8_t pipeIndex = 0; pipeIndex < ipcInfo->processAmount; pipeIndex++)
         {
             CLOSE_PIPE(processInfo.pipe[pipeIndex], 0);
             CLOSE_PIPE(processInfo.pipe[pipeIndex], 1);
@@ -109,16 +105,16 @@ void ShutdownIO(struct IOInfo *ioInfo)
     }
 }
 
-int InitIOParent(struct IOInfo *ioInfo)
+int InitIOParent(IPCInfo *ipcInfo)
 {
-    for (int processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
+    for (int processIndex = 0; processIndex < ipcInfo->processAmount; processIndex++)
     {
-        ioInfo->process[processIndex].pid = -1;
-        for (int childProcessPipeIndex = 0; childProcessPipeIndex < ioInfo->processAmount; childProcessPipeIndex++)
+        ipcInfo->process[processIndex].pid = -1;
+        for (int childProcessPipeIndex = 0; childProcessPipeIndex < ipcInfo->processAmount; childProcessPipeIndex++)
         {
             if (childProcessPipeIndex != processIndex)
             {
-                if (pipe(ioInfo->process[processIndex].pipe[childProcessPipeIndex]) == -1)
+                if (pipe(ipcInfo->process[processIndex].pipe[childProcessPipeIndex]) == -1)
                 {
                     perror("pipe");
                     return -1;
@@ -130,23 +126,21 @@ int InitIOParent(struct IOInfo *ioInfo)
     return 0;
 }
 
-int ReceiveAll(struct IOInfo ioInfo, local_id currentLocalID)
+int ReceiveAll(IPCInfo *ipcInfo, local_id currentLocalID)
 {
     Message message;
-    for (int8_t processIndex = 1; processIndex < ioInfo.processAmount; processIndex++)
+    for (int8_t processIndex = 1; processIndex < ipcInfo->processAmount; processIndex++)
     {
         if (processIndex == currentLocalID)
         {
             continue;
         }
         int retVal;
-        while ((retVal = receive(&ioInfo, processIndex, &message) == EAGAIN));
+        while ((retVal = receive(ipcInfo, processIndex, &message) == EAGAIN));
         if (retVal)
         {
             return -1;
         }
-//        Log(Debug, "Process with local id: %d received message from process with local id: %d. Message: %s\n",
-//            3, currentLocalID, processIndex, message.s_payload);
     }
 
     return 0;
@@ -169,19 +163,19 @@ int SetPipeToNonBlocking(int pipeFd)
     return 0;
 }
 
-int InitIONonBlocking(struct IOInfo *ioInfo)
+int InitIONonBlocking(IPCInfo *ipcInfo)
 {
-    for (int processIndex = 0; processIndex < ioInfo->processAmount; processIndex++)
+    for (int processIndex = 0; processIndex < ipcInfo->processAmount; processIndex++)
     {
-        for (int childProcessPipeIndex = 0; childProcessPipeIndex < ioInfo->processAmount; childProcessPipeIndex++)
+        for (int childProcessPipeIndex = 0; childProcessPipeIndex < ipcInfo->processAmount; childProcessPipeIndex++)
         {
             if (childProcessPipeIndex != processIndex)
             {
-                if (SetPipeToNonBlocking(ioInfo->process[processIndex].pipe[childProcessPipeIndex][0]) == -1)
+                if (SetPipeToNonBlocking(ipcInfo->process[processIndex].pipe[childProcessPipeIndex][0]) == -1)
                 {
                     return -1;
                 }
-                if (SetPipeToNonBlocking(ioInfo->process[processIndex].pipe[childProcessPipeIndex][1]) == -1)
+                if (SetPipeToNonBlocking(ipcInfo->process[processIndex].pipe[childProcessPipeIndex][1]) == -1)
                 {
                     return -1;
                 }

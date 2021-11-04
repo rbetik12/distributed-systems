@@ -46,11 +46,12 @@ struct ProcessInfo
     int pipe[MAX_PROCESS_ID][2];
 };
 
-struct IOInfo
+typedef struct IPCInfo
 {
+    timestamp_t currentLamportTime;
     uint8_t processAmount;
     struct ProcessInfo process[MAX_PROCESS_ID];
-};
+} IPCInfo;
 
 enum LogType
 {
@@ -60,26 +61,30 @@ enum LogType
     MessageInfo,
 };
 
-void Log(enum LogType type, const char *format, int argsAmount, ...);
+////////////////////////////// IO ///////////////////////////////////
 
-int SendString(struct IOInfo ioInfo, local_id destination, const char *string, Message *message);
+void InitIO(local_id *currentProcessId, IPCInfo *ioInfo);
 
-void WriteFormatString(Message *message, const char *format, int argsAmount, ...);
+int InitIOParent(IPCInfo* ioInfo);
 
-void InitMessage(Message *message, MessageType type, timestamp_t (*GetTimePtr)(void));
+int InitIONonBlocking(IPCInfo* ioInfo);
 
-void InitIO(local_id *currentProcessId, struct IOInfo *ioInfo);
+void ShutdownIO(IPCInfo *ioInfo);
 
-int ReceiveAll(struct IOInfo ioInfo, local_id currentLocalID);
+int ReceiveAll(IPCInfo* ioInfo, local_id currentLocalID);
 
-int InitIOParent(struct IOInfo* ioInfo);
-
-int InitIONonBlocking(struct IOInfo* ioInfo);
-
-void ShutdownIO(struct IOInfo *ioInfo);
-
-void ShutdownLog();
+////////////////////////////// Logging //////////////////////////////
 
 void InitLog();
 
+void Log(enum LogType type, const char *format, int argsAmount, ...);
+
+void ShutdownLog();
+
+////////////////////////////// Messages /////////////////////////////
+
+void InitMessage(Message *message, MessageType type);
+
 void CopyToMessage(Message *message, void* data, size_t dataSize);
+
+void WriteFormatStringToMessage(Message *message, const char *format, int argsAmount, ...);
