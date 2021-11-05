@@ -108,12 +108,12 @@ int receive(void *self, local_id from, Message *msg)
         return -1;
     }
 
-    ipcInfo->currentLamportTime += 1;
-
     if (msg->s_header.s_local_time > ipcInfo->currentLamportTime)
     {
         ipcInfo->currentLamportTime = msg->s_header.s_local_time;
     }
+
+    ipcInfo->currentLamportTime += 1;
 
     CheckHistory(get_lamport_time, 1);
 
