@@ -54,6 +54,12 @@ void ProcessTransfer(Message *message)
     } else if (currentLocalID == order.s_dst)
     {
         ipcInfo.process[currentLocalID].balance += order.s_amount;
+
+        for (timestamp_t t = message->s_header.s_local_time; t < get_lamport_time(); t++)
+        {
+            balanceHistoryWrapper.balanceHistory.s_history[t].s_balance_pending_in += order.s_amount;
+        }
+
         Message ackMessage;
         InitMessage(&ackMessage, ACK);
 
@@ -94,6 +100,7 @@ bool RunChildProcess()
         {
             continue;
         }
+
         switch (message.s_header.s_type)
         {
             case STOP:
