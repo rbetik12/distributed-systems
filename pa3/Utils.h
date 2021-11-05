@@ -88,3 +88,7 @@ void InitMessage(Message *message, MessageType type);
 void CopyToMessage(Message *message, void* data, size_t dataSize);
 
 void WriteFormatStringToMessage(Message *message, const char *format, int argsAmount, ...);
+
+////////////////////////////// History //////////////////////////////
+
+void CheckHistory(timestamp_t (*GetTimePtr)(void), int isEvent);

@@ -59,8 +59,6 @@ void ProcessTransfer(Message *message)
 
         SendWrapper(&ipcInfo, PARENT_ID, &ackMessage);
     }
-
-    CheckHistory(get_lamport_time, 1);
 }
 
 bool RunChildProcess()
@@ -90,7 +88,6 @@ bool RunChildProcess()
     bool isRunning = true;
     while (isRunning)
     {
-        CheckHistory(get_lamport_time, 0);
         InitMessage(&message, STARTED);
         int retVal = receive_any(&ipcInfo, &message);
         if (retVal == EAGAIN)
