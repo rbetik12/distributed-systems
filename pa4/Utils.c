@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <assert.h>
 
 void WriteFormatStringToMessage(Message *message, const char *format, int argsAmount, ...)
 {
@@ -186,8 +187,73 @@ int InitIONonBlocking(IPCInfo *ipcInfo)
     return 0;
 }
 
-void CopyToMessage(Message *message, void* data, size_t dataSize)
+void CopyToMessage(Message *message, void *data, size_t dataSize)
 {
     memcpy(message->s_payload, data, dataSize);
     message->s_header.s_payload_len = dataSize;
+}
+
+void push(SyncQueue *syncQueue, local_id localId, timestamp_t timestamp)
+{
+    assert(syncQueue->length <= MAX_PROCESS_ID);
+    bool added = false;
+    for (int i = 0; i < MAX_PROCESS_ID + 1; i++)
+    {
+        if (syncQueue->buffer[i].timestamp == 0)
+        {
+            syncQueue->buffer[i].timestamp = timestamp;
+            syncQueue->buffer[i].id = localId;
+            added = true;
+            break;
+        }
+    }
+
+    assert(added);
+    syncQueue->length += 1;
+}
+
+local_id findMin(const SyncQueue *syncQueue)
+{
+    assert(syncQueue->length > 0);
+
+    local_id minIndex;
+    timestamp_t minTimestamp = INT16_MAX;
+    local_id minId = MAX_PROCESS_ID;
+    for (local_id i = 0; i < MAX_PROCESS_ID; ++i)
+    {
+        if (syncQueue->buffer[i].timestamp == 0)
+        {
+            continue;
+        }
+
+        if (minTimestamp < syncQueue->buffer[i].timestamp)
+        {
+            continue;
+        }
+
+        if (minTimestamp == syncQueue->buffer[i].timestamp && minId < syncQueue->buffer[i].id) {
+            continue;
+        }
+
+        minTimestamp = syncQueue->buffer[i].timestamp;
+        minId = syncQueue->buffer[i].id;
+        minIndex = i;
+    }
+
+    return minIndex;
+}
+
+void pop(SyncQueue *syncQueue, local_id id)
+{
+    local_id min = findMin(syncQueue);
+    assert(syncQueue->buffer[min].id == id);
+
+    syncQueue->length -= 1;
+    syncQueue->buffer[min].id = 0;
+    syncQueue->buffer[min].timestamp = 0;
+}
+
+local_id peek(const SyncQueue *queue)
+{
+    return queue->buffer[findMin(queue)].id;
 }

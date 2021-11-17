@@ -5,25 +5,30 @@
 #include "Utils.h"
 
 extern local_id currentLocalID;
+
+int CustomSleep(long);
+
 timestamp_t get_lamport_time();
 
-void IncAndSetLamportTime(IPCInfo *ipcInfo, Message * msg)
+void IncAndSetLamportTime(IPCInfo *ipcInfo, Message *msg)
 {
     ipcInfo->currentLamportTime += 1;
     msg->s_header.s_local_time = get_lamport_time();
 }
 
-int SendWrapper(IPCInfo *ipcInfo, local_id dst, Message * msg)
+int SendWrapper(IPCInfo *ipcInfo, local_id dst, Message *msg)
 {
     IncAndSetLamportTime(ipcInfo, msg);
     return send(ipcInfo, dst, msg);
 }
 
-int SendMulticastWrapper(IPCInfo *ipcInfo, Message * msg)
+int SendMulticastWrapper(IPCInfo *ipcInfo, Message *msg)
 {
     IncAndSetLamportTime(ipcInfo, msg);
     return send_multicast(ipcInfo, msg);
 }
+
+#include <stdlib.h>
 
 int send(void *self, local_id dst, const Message *msg)
 {
@@ -37,23 +42,22 @@ int send(void *self, local_id dst, const Message *msg)
     }
     ssize_t messageSize = sizeof(Message) - (MAX_PAYLOAD_LEN - msg->s_header.s_payload_len);
     ssize_t writeAmount;
-
-    while ((writeAmount = write(currentProcess.pipe[dst][1], msg, messageSize)) == -1)
+    writeAmount = write(currentProcess.pipe[dst][1], msg, messageSize);
+    if (currentLocalID == 1)
     {
-        if (errno != EAGAIN)
-        {
-            break;
-        }
+//        Log(Debug, "Write status: %d Message size: %d Type: %d\n", 3, writeAmount, messageSize, msg->s_header.s_type);
+    }
+    CustomSleep(rand() % 10 + 1);
+
+    if (writeAmount == -1) {
+        Log(Debug, "Process %d didn't send message to process with local id: %d! Error occured: %s\n", 3,
+            getpid(), dst, strerror(errno));
+        return errno;
     }
 
     if (writeAmount != messageSize)
     {
         Log(Debug, "Process %d didn't send message to process with local id: %d!\n", 2, getpid(), dst);
-        if (writeAmount == -1)
-        {
-            Log(Debug, "Process %d didn't send message to process with local id: %d! Error occured: %s\n", 3,
-                getpid(), dst, strerror(errno));
-        }
         return -1;
     }
 
@@ -85,6 +89,10 @@ int receive(void *self, local_id from, Message *msg)
             Log(Debug, "Process %d didn't receive message header from process with local id: %d! Error occured: %s\n",
                 3, getpid(), from, strerror(errno));
         }
+        if (readAmount == 0)
+        {
+            return -1;
+        }
         return -1;
     }
 
@@ -105,6 +113,7 @@ int receive(void *self, local_id from, Message *msg)
                 "Process %d didn't receive message payload from process with local id: %d!\n Error occured: %s\n", 3,
                 getpid(), from, strerror(errno));
         }
+        Log(Debug, "Receive fails in readAMount!\n", 0);
         return -1;
     }
 
@@ -128,7 +137,9 @@ int send_multicast(void *self, const Message *msg)
         {
             continue;
         }
+
         status = send(ipcInfo, processIndex, msg);
+
         if (status != 0)
         {
             return -1;

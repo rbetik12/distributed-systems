@@ -44,20 +44,46 @@ struct ProcessInfo
     int pipe[MAX_PROCESS_ID][2];
 };
 
+typedef struct {
+    struct {
+        local_id id;
+        timestamp_t timestamp;
+    } buffer[MAX_PROCESS_ID + 1];
+
+    uint8_t length;
+} SyncQueue;
+
 typedef struct IPCInfo
 {
     timestamp_t currentLamportTime;
     uint8_t processAmount;
+    SyncQueue queue;
+    int currentIteration;
+    struct {
+       int replies;
+       int done;
+    } context;
     struct ProcessInfo process[MAX_PROCESS_ID];
 } IPCInfo;
 
 enum LogType
+
 {
     Pipe,
     Event,
     Debug,
     MessageInfo,
 };
+
+////////////////////////////// Queue methods ///////////////////////////////////
+
+void push(SyncQueue* syncQueue, local_id localId, timestamp_t timestamp);
+
+local_id findMin(const SyncQueue* syncQueue);
+
+void pop(SyncQueue* syncQueue, local_id id);
+
+local_id peek(const SyncQueue* syncQueue);
 
 ////////////////////////////// IO ///////////////////////////////////
 

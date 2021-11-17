@@ -1,11 +1,14 @@
+#define _POSIX_C_SOURCE 199309L
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdbool.h>
-#include <string.h>
 #include <errno.h>
+#include <string.h>
+#include <time.h>
 #include "Utils.h"
 #include "ipc.h"
 #include "pa2345.h"
@@ -17,9 +20,130 @@ pid_t currentPID = 0;
 pid_t parentPID = 0;
 bool shouldUseMutex = false;
 
+const char *MessageTypeToStr(MessageType type);
+
+int CustomSleep(long msec)
+{
+    struct timespec ts;
+    int res;
+
+    if (msec < 0)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ts.tv_sec = msec / 1000;
+    ts.tv_nsec = (msec % 1000) * 1000000;
+
+    do
+    {
+        res = nanosleep(&ts, &ts);
+    } while (res && errno == EINTR);
+
+    return res;
+}
+
+int ReceiveMessage(IPCInfo *ipcInfo)
+{
+    Message message;
+    InitMessage(&message, STARTED);
+    int ret = receive_any(ipcInfo, &message);
+
+    if (ret == EAGAIN)
+    {
+        return 0;
+    } else if (ret < 0)
+    {
+        Log(Debug, "recieve %d\n", 1, ret);
+        return -1;
+    }
+
+    local_id src;
+    memcpy(&src, message.s_payload, sizeof(src));
+
+    switch (message.s_header.s_type)
+    {
+        case CS_REQUEST:
+        {
+            push(&ipcInfo->queue, src, message.s_header.s_local_time);
+
+            Message reply;
+            InitMessage(&reply, CS_REPLY);
+            SendWrapper(ipcInfo, src, &reply);
+            break;
+        }
+        case CS_REPLY:
+            ipcInfo->context.replies += 1;
+            break;
+        case CS_RELEASE:
+            pop(&ipcInfo->queue, src);
+            break;
+        case DONE:
+            ipcInfo->context.done += 1;
+            break;
+        default:
+            Log(Debug, "Received message with message type: %s\n", 1, MessageTypeToStr(message.s_header.s_type));
+            Log(MessageInfo, NULL, 1, &message);
+            return -1;
+    }
+    return 0;
+}
+
 timestamp_t get_lamport_time()
 {
     return ipcInfo.currentLamportTime;
+}
+
+int request_cs(const void *self)
+{
+    IPCInfo *ipcInfo = (IPCInfo *) self;
+    Message message;
+    InitMessage(&message, CS_REQUEST);
+    CopyToMessage(&message, &currentLocalID, sizeof(currentLocalID));
+
+    int ret = SendMulticastWrapper(ipcInfo, &message);
+
+    if (ret < 0)
+    {
+        Log(Debug, "send\n", 0);
+        return -1;
+    }
+
+    push(&ipcInfo->queue, currentLocalID, get_lamport_time());
+
+    ipcInfo->context.replies = 0;
+    while (ipcInfo->context.replies < ipcInfo->processAmount - 2 || peek(&ipcInfo->queue) != currentLocalID)
+    {
+        if (ReceiveMessage(ipcInfo) < 0)
+        {
+            return -1;
+        }
+    }
+    return 1;
+}
+
+int release_cs(const void *self)
+{
+    IPCInfo *ipcInfo = (IPCInfo *) self;
+
+    if (ipcInfo->queue.length == 0)
+    {
+        return -1;
+    }
+
+    if (peek(&ipcInfo->queue) != currentLocalID)
+    {
+        return -1;
+    }
+
+    pop(&ipcInfo->queue, currentLocalID);
+
+    Message release;
+    InitMessage(&release, CS_RELEASE);
+    CopyToMessage(&release, &currentLocalID, sizeof(currentLocalID));
+    int ret = SendMulticastWrapper(ipcInfo, &release);
+    return ret;
 }
 
 bool RunChildProcess()
@@ -46,16 +170,29 @@ bool RunChildProcess()
     ReceiveAll(&ipcInfo, currentLocalID);
     //Start end
 
-    if (shouldUseMutex)
+    for (int i = 0; i < currentLocalID * 5; i++)
     {
-
-    } else
-    {
-        for (int i = 0; i < currentLocalID * 5; i++)
+        ipcInfo.currentIteration = i;
+        if (shouldUseMutex)
         {
-            char outBuf[256];
-            snprintf(outBuf, 256, log_loop_operation_fmt, currentLocalID, i, currentLocalID * 5);
-            print(outBuf);
+            if (request_cs(&ipcInfo) < 0)
+            {
+                Log(Debug, "Request failed at %d step in process %d\n", 2, i + 1, currentLocalID);
+                return false;
+            }
+        }
+
+        char outBuf[256];
+        snprintf(outBuf, 256, log_loop_operation_fmt, currentLocalID, i + 1, currentLocalID * 5);
+        print(outBuf);
+
+        if (shouldUseMutex)
+        {
+            if (release_cs(&ipcInfo) < 0)
+            {
+                Log(Debug, "Release failed at %d step in process %d\n", 2, i + 1, currentLocalID);
+                return false;
+            }
         }
     }
 
@@ -68,10 +205,19 @@ bool RunChildProcess()
                                currentLocalID,
                                0);
     Log(Event, message.s_payload, 0);
-    SendMulticastWrapper(&ipcInfo, &message);
-    ReceiveAll(&ipcInfo, currentLocalID);
-    //Done end
 
+    SendMulticastWrapper(&ipcInfo, &message);
+
+    while (ipcInfo.context.done < ipcInfo.processAmount - 2)
+    {
+        if (ReceiveMessage(&ipcInfo))
+        {
+            Log(Debug, "Error in proc %d\n", 1, currentLocalID);
+            return -1;
+        }
+    }
+    //Done end
+    Log(Debug, "Shutdown in proc %d\n", 1, currentLocalID);
     ShutdownIO(&ipcInfo);
 
     return true;
@@ -89,11 +235,14 @@ int main(int argc, char *argv[])
     memset(&ipcInfo, 0, sizeof(ipcInfo));
     int processAmountIndex = 0;
 
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--mutexl") == 0) {
+    for (int i = 1; i < argc; i++)
+    {
+        if (strcmp(argv[i], "--mutexl") == 0)
+        {
             shouldUseMutex = true;
         }
-        if (strcmp(argv[i], "-x") == 0) {
+        if (strcmp(argv[i], "-p") == 0)
+        {
             processAmountIndex = i + 1;
         }
     }
