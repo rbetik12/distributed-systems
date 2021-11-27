@@ -1,5 +1,5 @@
 CC=clang
-CFLAGS=-g -Wall -pedantic -Werror -std=c99
+CFLAGS=-g -Wall -pedantic -std=c99
 
 all: pa3
 

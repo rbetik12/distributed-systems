@@ -21,32 +21,24 @@ timestamp_t get_lamport_time()
     return ipcInfo.currentLamportTime;
 }
 
-typedef struct BalanceHistoryWrapper
-{
-    BalanceHistory balanceHistory;
-    uint8_t isSetByEvent[MAX_T + 1];
-} BalanceHistoryWrapper;
 
-BalanceHistoryWrapper balanceHistoryWrapper;
+BalanceHistory balanceHistory;
 
-void CheckHistory(timestamp_t (*GetTimePtr)(void), int isEvent)
+void CheckHistory(timestamp_t (*GetTimePtr)(void))
 {
     uint8_t historyIndex = GetTimePtr();
 
-    if (isEvent || balanceHistoryWrapper.balanceHistory.s_history[historyIndex].s_balance == 0)
+    if (balanceHistory.s_history[historyIndex].s_balance == 0)
     {
-        balanceHistoryWrapper.balanceHistory.s_history[historyIndex].s_time = historyIndex;
-        balanceHistoryWrapper.balanceHistory.s_history[historyIndex].s_balance = ipcInfo.process[currentLocalID].balance;
-        balanceHistoryWrapper.balanceHistory.s_history_len += 1;
-        balanceHistoryWrapper.isSetByEvent[historyIndex] = isEvent;
+        balanceHistory.s_history[historyIndex].s_time = historyIndex;
+        balanceHistory.s_history[historyIndex].s_balance = ipcInfo.process[currentLocalID].balance;
     }
 }
 
-void ProcessTransfer(Message *message)
+void ProcessTransfer(Message *message, timestamp_t time)
 {
     TransferOrder order;
     memcpy(&order, message->s_payload, sizeof(order));
-
     if (currentLocalID == order.s_src)
     {
         ipcInfo.process[currentLocalID].balance -= order.s_amount;
@@ -55,9 +47,9 @@ void ProcessTransfer(Message *message)
     {
         ipcInfo.process[currentLocalID].balance += order.s_amount;
 
-        for (timestamp_t t = message->s_header.s_local_time; t < get_lamport_time(); t++)
+        for (timestamp_t i = message->s_header.s_local_time - 1; i < time; i++)
         {
-            balanceHistoryWrapper.balanceHistory.s_history[t].s_balance_pending_in += order.s_amount;
+            balanceHistory.s_history[i].s_balance_pending_in += order.s_amount;
         }
 
         Message ackMessage;
@@ -74,19 +66,17 @@ bool RunChildProcess()
     // Mark parent process as non-zero process to determine it
     ipcInfo.process[0].pid = -1;
     InitIO(&currentLocalID, &ipcInfo);
-    memset(&balanceHistoryWrapper, 0, sizeof(balanceHistoryWrapper));
-    balanceHistoryWrapper.balanceHistory.s_id = currentLocalID;
-    balanceHistoryWrapper.balanceHistory.s_history_len = 1;
-    balanceHistoryWrapper.balanceHistory.s_history[0].s_balance = ipcInfo.process[currentLocalID].balance;
+    memset(&balanceHistory, 0, sizeof(balanceHistory));
+    CheckHistory(get_lamport_time);
+    balanceHistory.s_id = currentLocalID;
     //Start
     Message message;
     InitMessage(&message, STARTED);
     WriteFormatStringToMessage(&message, log_started_fmt, 5, message.s_header.s_local_time, currentLocalID, currentPID,
-                      parentPID,
-                      ipcInfo.process[currentLocalID].balance);
+                               parentPID,
+                               ipcInfo.process[currentLocalID].balance);
     Log(Event, message.s_payload, 0);
 
-    CheckHistory(get_lamport_time, 0);
     SendMulticastWrapper(&ipcInfo, &message);
     ReceiveAll(&ipcInfo, currentLocalID);
     //Start end
@@ -94,12 +84,22 @@ bool RunChildProcess()
     bool isRunning = true;
     while (isRunning)
     {
+        CheckHistory(get_lamport_time);
         InitMessage(&message, STARTED);
         int retVal = receive_any(&ipcInfo, &message);
         if (retVal == EAGAIN)
         {
             continue;
         }
+
+        const timestamp_t t = get_lamport_time();
+        for (int i = balanceHistory.s_history_len; i < t; i++)
+        {
+            balanceHistory.s_history[i].s_balance = ipcInfo.process[currentLocalID].balance;
+            balanceHistory.s_history[i].s_time = i;
+        }
+
+        balanceHistory.s_history_len = t;
 
         switch (message.s_header.s_type)
         {
@@ -111,19 +111,24 @@ bool RunChildProcess()
             }
             case TRANSFER:
             {
-                ProcessTransfer(&message);
+                ProcessTransfer(&message, t);
                 break;
             }
         }
     }
-    //Done
+
+    balanceHistory.s_history[balanceHistory.s_history_len].s_time = balanceHistory.s_history_len;
+    balanceHistory.s_history[balanceHistory.s_history_len].s_balance = ipcInfo.process[currentLocalID].balance;
+    balanceHistory.s_history[balanceHistory.s_history_len].s_balance_pending_in = 0;
+    balanceHistory.s_history_len += 1;
+
     InitMessage(&message, BALANCE_HISTORY);
-    CopyToMessage(&message, &balanceHistoryWrapper.balanceHistory, sizeof(balanceHistoryWrapper.balanceHistory));
+    CopyToMessage(&message, &balanceHistory, sizeof(balanceHistory));
     SendWrapper(&ipcInfo, PARENT_ID, &message);
 
     InitMessage(&message, DONE);
     WriteFormatStringToMessage(&message, log_done_fmt, 3, message.s_header.s_local_time, currentLocalID,
-                      ipcInfo.process[currentLocalID].balance);
+                               ipcInfo.process[currentLocalID].balance);
     Log(Event, message.s_payload, 0);
     SendMulticastWrapper(&ipcInfo, &message);
     ReceiveAll(&ipcInfo, currentLocalID);
@@ -195,10 +200,8 @@ int main(int argc, char *argv[])
     {
         InitMessage(&message, BALANCE_HISTORY);
         while (receive(&ipcInfo, id, &message) == EAGAIN);
-
         history.s_history_len += 1;
         memcpy(&history.s_history[id - 1], message.s_payload, sizeof(BalanceHistory));
-        history.s_history[id - 1].s_history_len = ipcInfo.processAmount;
     }
 
     print_history(&history);

@@ -14,25 +14,17 @@ struct IOInfo ioInfo;
 local_id currentLocalID = 0;
 pid_t currentPID = 0;
 pid_t parentPID = 0;
+BalanceHistory balanceHistory;
 
-typedef struct BalanceHistoryWrapper
-{
-    BalanceHistory balanceHistory;
-    uint8_t isSetByEvent[MAX_T + 1];
-} BalanceHistoryWrapper;
 
-BalanceHistoryWrapper balanceHistoryWrapper;
-
-void CheckHistory(timestamp_t (*GetTimePtr)(void), int isEvent)
+void CheckHistory(timestamp_t (*GetTimePtr)(void))
 {
     uint8_t historyIndex = GetTimePtr();
 
-    if (isEvent || balanceHistoryWrapper.balanceHistory.s_history[historyIndex].s_balance == 0)
+    if (balanceHistory.s_history[historyIndex].s_balance == 0)
     {
-        balanceHistoryWrapper.balanceHistory.s_history[historyIndex].s_time = historyIndex;
-        balanceHistoryWrapper.balanceHistory.s_history[historyIndex].s_balance = ioInfo.process[currentLocalID].balance;
-        balanceHistoryWrapper.balanceHistory.s_history_len += 1;
-        balanceHistoryWrapper.isSetByEvent[historyIndex] = isEvent;
+        balanceHistory.s_history[historyIndex].s_time = historyIndex;
+        balanceHistory.s_history[historyIndex].s_balance = ioInfo.process[currentLocalID].balance;
     }
 }
 
@@ -54,7 +46,7 @@ void ProcessTransfer(Message *message)
         send(&ioInfo, PARENT_ID, &ackMessage);
     }
 
-    CheckHistory(get_physical_time, 1);
+    CheckHistory(get_physical_time);
 }
 
 bool RunChildProcess()
@@ -64,10 +56,9 @@ bool RunChildProcess()
     // Mark parent process as non-zero process to determine it
     ioInfo.process[0].pid = -1;
     InitIO(&currentLocalID, &ioInfo);
-    memset(&balanceHistoryWrapper, 0, sizeof(balanceHistoryWrapper));
-    balanceHistoryWrapper.balanceHistory.s_id = currentLocalID;
-    balanceHistoryWrapper.balanceHistory.s_history_len = 1;
-    balanceHistoryWrapper.balanceHistory.s_history[0].s_balance = ioInfo.process[currentLocalID].balance;
+    memset(&balanceHistory, 0, sizeof(balanceHistory));
+    balanceHistory.s_id = currentLocalID;
+    CheckHistory(get_physical_time);
     //Start
     Message message;
     InitMessage(&message, STARTED, get_physical_time);
@@ -82,13 +73,23 @@ bool RunChildProcess()
     bool isRunning = true;
     while (isRunning)
     {
-        CheckHistory(get_physical_time, 0);
+        CheckHistory(get_physical_time);
         InitMessage(&message, STARTED, get_physical_time);
         int retVal = receive_any(&ioInfo, &message);
         if (retVal == EAGAIN)
         {
             continue;
         }
+
+        const timestamp_t t = get_physical_time();
+        for (int i = balanceHistory.s_history_len; i < t; i++)
+        {
+            balanceHistory.s_history[i].s_balance = ioInfo.process[currentLocalID].balance;
+            balanceHistory.s_history[i].s_time = i;
+        }
+
+        balanceHistory.s_history_len = t;
+
         switch (message.s_header.s_type)
         {
             case STOP:
@@ -104,9 +105,14 @@ bool RunChildProcess()
             }
         }
     }
+
+    balanceHistory.s_history[balanceHistory.s_history_len].s_time = balanceHistory.s_history_len;
+    balanceHistory.s_history[balanceHistory.s_history_len].s_balance = ioInfo.process[currentLocalID].balance;
+    balanceHistory.s_history[balanceHistory.s_history_len].s_balance_pending_in = 0;
+    balanceHistory.s_history_len += 1;
     //Done
     InitMessage(&message, BALANCE_HISTORY, get_physical_time);
-    CopyToMessage(&message, &balanceHistoryWrapper.balanceHistory, sizeof(balanceHistoryWrapper.balanceHistory));
+    CopyToMessage(&message, &balanceHistory, sizeof(balanceHistory));
     send(&ioInfo, PARENT_ID, &message);
 
     InitMessage(&message, DONE, get_physical_time);
@@ -186,7 +192,6 @@ int main(int argc, char *argv[])
 
         history.s_history_len += 1;
         memcpy(&history.s_history[id - 1], message.s_payload, sizeof(BalanceHistory));
-        history.s_history[id - 1].s_history_len = ioInfo.processAmount;
     }
 
     print_history(&history);

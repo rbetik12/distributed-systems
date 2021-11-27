@@ -91,4 +91,4 @@ void WriteFormatStringToMessage(Message *message, const char *format, int argsAm
 
 ////////////////////////////// History //////////////////////////////
 
-void CheckHistory(timestamp_t (*GetTimePtr)(void), int isEvent);
+void CheckHistory(timestamp_t (*GetTimePtr)(void));

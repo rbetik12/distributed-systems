@@ -10,7 +10,7 @@ void IncAndSetLamportTime(IPCInfo *ipcInfo, Message * msg)
 {
     ipcInfo->currentLamportTime += 1;
     msg->s_header.s_local_time = get_lamport_time();
-    CheckHistory(get_lamport_time, 1);
+    CheckHistory(get_lamport_time);
 }
 
 int SendWrapper(IPCInfo *ipcInfo, local_id dst, Message * msg)
@@ -115,7 +115,7 @@ int receive(void *self, local_id from, Message *msg)
 
     ipcInfo->currentLamportTime += 1;
 
-    CheckHistory(get_lamport_time, 1);
+    CheckHistory(get_lamport_time);
 
     return 0;
 }
