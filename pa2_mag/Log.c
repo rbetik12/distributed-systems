@@ -1,20 +1,20 @@
 #include "Utils.h"
+#include "common.h"
+#include "ipc.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-#include "common.h"
-#include "ipc.h"
 
 static FILE *eventLogFile = NULL;
 static FILE *pipesLogFile = NULL;
 
-void InitLog()
+void InitLog(void)
 {
     eventLogFile = fopen(events_log, "a");
     pipesLogFile = fopen(pipes_log, "a");
 }
 
-void ShutdownLog()
+void ShutdownLog(void)
 {
     fclose(eventLogFile);
     fclose(pipesLogFile);

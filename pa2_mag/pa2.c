@@ -19,7 +19,7 @@ pid_t currentPID = 0;
 pid_t parentPID = 0;
 bool shouldUseMutex = false;
 
-int checkMessages()
+int checkMessages(void)
 {
     Message message;
     int ret = receive_any(&ipcInfo, &message);
@@ -94,7 +94,7 @@ int sendMessages(bool isFinished)
         }
 
 
-        if (fork.requested && (fork.fork && fork.dirty || isFinished))
+        if (fork.requested && ((fork.fork && fork.dirty) || isFinished))
         {
             Message reply;
             InitMessage(&reply, CS_REPLY);
@@ -114,9 +114,11 @@ int sendMessages(bool isFinished)
             ipcInfo.forks[i].requested = false;
         }
     }
+
+    return 0;
 }
 
-timestamp_t get_lamport_time()
+timestamp_t get_lamport_time(void)
 {
     return ipcInfo.currentLamportTime;
 }
@@ -156,21 +158,19 @@ int request_cs(const void *self)
 
 int release_cs(const void *self)
 {
-    IPCInfo *ipcInfo = (IPCInfo *) self;
-
-    for (int i = 1; i < ipcInfo->processAmount; i++)
+    for (int i = 1; i < ipcInfo.processAmount; i++)
     {
         if (i == currentLocalID)
         {
             continue;
         }
-        ipcInfo->forks[i].dirty = true;
+        ipcInfo.forks[i].dirty = true;
     }
 
     return 0;
 }
 
-bool RunChildProcess()
+bool RunChildProcess(void)
 {
     currentPID = getpid();
 

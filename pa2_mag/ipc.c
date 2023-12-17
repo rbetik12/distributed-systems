@@ -8,7 +8,7 @@ extern local_id currentLocalID;
 
 int CustomSleep(long);
 
-timestamp_t get_lamport_time();
+timestamp_t get_lamport_time(void);
 
 void IncAndSetLamportTime(IPCInfo *ipcInfo, Message *msg)
 {

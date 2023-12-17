@@ -108,11 +108,11 @@ int ReceiveAll(IPCInfo* ioInfo, local_id currentLocalID);
 
 ////////////////////////////// Logging //////////////////////////////
 
-void InitLog();
+void InitLog(void);
 
 void Log(enum LogType type, const char *format, int argsAmount, ...);
 
-void ShutdownLog();
+void ShutdownLog(void);
 
 ////////////////////////////// Messages /////////////////////////////
 
