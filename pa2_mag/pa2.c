@@ -41,14 +41,14 @@ int checkMessages()
             ForkRequest request;
             memcpy(&request, &message.s_payload, sizeof(request));
 
-            //Log(Debug, "%d: received request for fork %d from process %d\n", 3, currentLocalID, request.fork, request.senderId);
+            Log(Debug, "%d: received request for fork %d from process %d\n", 3, currentLocalID, request.fork, request.senderId);
 
             ipcInfo.forks[request.senderId].requested = true;
             break;
         }
         case CS_REPLY:
         {
-            //Log(Debug, "%d: received reply\n", 2, currentLocalID);
+            Log(Debug, "%d: received reply\n", 2, currentLocalID);
             local_id forkId;
             memcpy(&forkId, &message.s_payload, sizeof(local_id));
             ipcInfo.forks[forkId].fork = true;
@@ -64,7 +64,7 @@ int checkMessages()
     return 0;
 }
 
-int sendMessages()
+int sendMessages(bool isFinished)
 {
     for (int i = 1; i < ipcInfo.processAmount; i++)
     {
@@ -88,15 +88,29 @@ int sendMessages()
 
             CopyToMessage(&message, &request, sizeof(request));
             SendWrapper(&ipcInfo, i, &message);
-            //Log(Debug, "%d: sent request for fork to process %d\n", 2, currentLocalID, i);
+            Log(Debug, "%d: sent request for fork to process %d\n", 2, currentLocalID, i);
         }
 
-        if (fork.requested && fork.fork && fork.dirty)
+//        if (isFinished)
+//        {
+//            Log(Debug, "=======================================================\n", 0);
+//            Log(Debug, "%d: fork %d status:\n", 2, currentLocalID, i);
+//            Log(Debug, "\t%d: requested: %b\n", 2, currentLocalID, fork.requested);
+//            Log(Debug, "\t%d: present: %b\n", 2, currentLocalID, fork.fork);
+//            Log(Debug, "\t%d: dirty: %b\n", 2, currentLocalID, fork.dirty);
+//            Log(Debug, "=======================================================\n", 0);
+//        }
+
+        if (fork.requested && (fork.fork && fork.dirty || isFinished))
         {
+//            if (isFinished)
+//            {
+//                Log(Debug, "%d: Sending reply to %d\n", 2, currentLocalID, i);
+//            }
+
             Message reply;
             InitMessage(&reply, CS_REPLY);
             CopyToMessage(&reply, &currentLocalID, sizeof(currentLocalID));
-
 
             if (SendWrapper(&ipcInfo, i, &reply) < 0)
             {
@@ -142,7 +156,7 @@ int request_cs(const void *self)
         }
 
         checkMessages();
-        sendMessages();
+        sendMessages(false);
     }
 
     return 0;
@@ -249,11 +263,12 @@ bool RunChildProcess()
 
     while (ipcInfo.context.done < ipcInfo.processAmount - 2)
     {
-        if (checkMessages() && sendMessages())
+        if (checkMessages())
         {
             Log(Debug, "Error in proc %d\n", 1, currentLocalID);
             return -1;
         }
+        sendMessages(true);
     }
     //Done end
     Log(Debug, "Shutdown in proc %d\n", 1, currentLocalID);
