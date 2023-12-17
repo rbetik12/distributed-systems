@@ -41,16 +41,18 @@ int checkMessages()
             ForkRequest request;
             memcpy(&request, &message.s_payload, sizeof(request));
 
-            Log(Debug, "%d: received request for fork %d from process %d\n", 3, currentLocalID, request.fork, request.senderId);
+            //Log(Debug, "%d: received request for fork %d from process %d\n", 3, currentLocalID, request.fork, request.senderId);
 
             ipcInfo.forks[request.senderId].requested = true;
             break;
         }
         case CS_REPLY:
         {
-            Log(Debug, "%d: received reply\n", 2, currentLocalID);
             local_id forkId;
             memcpy(&forkId, &message.s_payload, sizeof(local_id));
+
+//            Log(Debug, "%d: received reply from %d\n", 2, currentLocalID, forkId);
+
             ipcInfo.forks[forkId].fork = true;
             ipcInfo.forks[forkId].dirty = false;
             ipcInfo.forks[forkId].requested = true;
@@ -75,7 +77,7 @@ int sendMessages(bool isFinished)
 
         struct ForkInfo fork = ipcInfo.forks[i];
 
-        if (!fork.fork)
+        if (!fork.fork && ipcInfo.forks[i].requested)
         {
             ipcInfo.forks[i].requested = false;
 
@@ -88,34 +90,24 @@ int sendMessages(bool isFinished)
 
             CopyToMessage(&message, &request, sizeof(request));
             SendWrapper(&ipcInfo, i, &message);
-            Log(Debug, "%d: sent request for fork to process %d\n", 2, currentLocalID, i);
+//            Log(Debug, "%d: sent request for fork to process %d\n", 2, currentLocalID, i);
         }
 
-//        if (isFinished)
-//        {
-//            Log(Debug, "=======================================================\n", 0);
-//            Log(Debug, "%d: fork %d status:\n", 2, currentLocalID, i);
-//            Log(Debug, "\t%d: requested: %b\n", 2, currentLocalID, fork.requested);
-//            Log(Debug, "\t%d: present: %b\n", 2, currentLocalID, fork.fork);
-//            Log(Debug, "\t%d: dirty: %b\n", 2, currentLocalID, fork.dirty);
-//            Log(Debug, "=======================================================\n", 0);
-//        }
 
         if (fork.requested && (fork.fork && fork.dirty || isFinished))
         {
-//            if (isFinished)
-//            {
-//                Log(Debug, "%d: Sending reply to %d\n", 2, currentLocalID, i);
-//            }
-
             Message reply;
             InitMessage(&reply, CS_REPLY);
             CopyToMessage(&reply, &currentLocalID, sizeof(currentLocalID));
 
             if (SendWrapper(&ipcInfo, i, &reply) < 0)
             {
+                Log(Debug, "Process %d didn't send reply message to process %d! Error occured: %s\n", 3,
+                    currentLocalID, i, strerror(errno));
                 return -1;
             }
+
+//            Log(Debug, "%d: Sending reply to %d\n", 2, currentLocalID, i);
 
             ipcInfo.forks[i].fork = false;
             ipcInfo.forks[i].dirty = false;
@@ -168,6 +160,10 @@ int release_cs(const void *self)
 
     for (int i = 1; i < ipcInfo->processAmount; i++)
     {
+        if (i == currentLocalID)
+        {
+            continue;
+        }
         ipcInfo->forks[i].dirty = true;
     }
 

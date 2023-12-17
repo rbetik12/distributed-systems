@@ -63,6 +63,12 @@ typedef struct ForkRequest
     local_id fork;
 } ForkRequest;
 
+typedef struct ForkReply
+{
+    local_id senderId;
+    local_id fork;
+} ForkReply;
+
 typedef struct IPCInfo
 {
     timestamp_t currentLamportTime;

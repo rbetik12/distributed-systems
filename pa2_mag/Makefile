@@ -1,12 +1,12 @@
 CC=clang
 CFLAGS=-g -Wall -pedantic -Werror -std=c99
 
-all: pa5
+all: pa6
 
-pa5:
-	$(CC) $(CFLAGS) *.c -o lab5 -L. -lruntime
+pa6:
+	$(CC) $(CFLAGS) *.c -o lab6 -L. -lruntime
 
 clean:
-	rm -f lab5
+	rm -f lab6
 
 #.PHONY: all clean pa5

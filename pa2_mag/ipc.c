@@ -40,12 +40,28 @@ int send(void *self, local_id dst, const Message *msg)
     }
     ssize_t messageSize = sizeof(Message) - (MAX_PAYLOAD_LEN - msg->s_header.s_payload_len);
     ssize_t writeAmount;
-    writeAmount = write(currentProcess.pipe[dst][1], msg, messageSize);
 
-    if (writeAmount == -1) {
-        Log(Debug, "Process %d didn't send message to process with local id: %d! Error occured: %s\n", 3,
-            getpid(), dst, strerror(errno));
-        return errno;
+    while (true)
+    {
+        writeAmount = write(currentProcess.pipe[dst][1], msg, messageSize);
+        if (writeAmount < 0)
+        {
+            if (errno == EAGAIN)
+            {
+                continue;
+            }
+            else
+            {
+                Log(Debug, "Process %d didn't send message to process with local id: %d! Error occured: %s\n", 3,
+                    getpid(), dst, strerror(errno));
+                return errno;
+            }
+        }
+
+        if (writeAmount >= 0)
+        {
+            break;
+        }
     }
 
     if (writeAmount != messageSize)
