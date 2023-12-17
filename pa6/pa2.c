@@ -18,9 +18,6 @@ local_id currentLocalID = 0;
 pid_t currentPID = 0;
 pid_t parentPID = 0;
 bool shouldUseMutex = false;
-bool isFinished = false;
-
-#define DEBUG_LOGGING
 
 int checkMessages(void)
 {
@@ -43,9 +40,8 @@ int checkMessages(void)
         {
             ForkRequest request;
             memcpy(&request, &message.s_payload, sizeof(request));
-#ifdef DEBUG_LOGGING
-            Log(Debug, "%d: received request for fork %d from process %d\n", 3, currentLocalID, request.fork, request.senderId);
-#endif
+
+            //Log(Debug, "%d: received request for fork %d from process %d\n", 3, currentLocalID, request.fork, request.senderId);
 
             ipcInfo.forks[request.senderId].requested = true;
             break;
@@ -55,9 +51,7 @@ int checkMessages(void)
             local_id forkId;
             memcpy(&forkId, &message.s_payload, sizeof(local_id));
 
-#ifdef DEBUG_LOGGING
-            Log(Debug, "%d: received reply from %d\n", 2, currentLocalID, forkId);
-#endif
+//            Log(Debug, "%d: received reply from %d\n", 2, currentLocalID, forkId);
 
             ipcInfo.forks[forkId].fork = true;
             ipcInfo.forks[forkId].dirty = false;
@@ -72,7 +66,7 @@ int checkMessages(void)
     return 0;
 }
 
-int sendMessages(void)
+int sendMessages(bool isFinished)
 {
     for (int i = 1; i < ipcInfo.processAmount; i++)
     {
@@ -96,12 +90,11 @@ int sendMessages(void)
 
             CopyToMessage(&message, &request, sizeof(request));
             SendWrapper(&ipcInfo, i, &message);
-#ifdef DEBUG_LOGGING
-            Log(Debug, "%d: sent request for fork to process %d\n", 2, currentLocalID, i);
-#endif
+//            Log(Debug, "%d: sent request for fork to process %d\n", 2, currentLocalID, i);
         }
 
-        if (fork.requested && fork.fork && (fork.dirty || isFinished))
+
+        if (fork.requested && ((fork.fork && fork.dirty) || isFinished))
         {
             Message reply;
             InitMessage(&reply, CS_REPLY);
@@ -114,9 +107,7 @@ int sendMessages(void)
                 return -1;
             }
 
-#ifdef DEBUG_LOGGING
-            Log(Debug, "%d: Sending reply to %d\n", 2, currentLocalID, i);
-#endif
+//            Log(Debug, "%d: Sending reply to %d\n", 2, currentLocalID, i);
 
             ipcInfo.forks[i].fork = false;
             ipcInfo.forks[i].dirty = false;
@@ -159,7 +150,7 @@ int request_cs(const void *self)
         }
 
         checkMessages();
-        sendMessages();
+        sendMessages(false);
     }
 
     return 0;
@@ -240,8 +231,7 @@ bool RunChildProcess(void)
 
         char outBuf[256];
         snprintf(outBuf, 256, log_loop_operation_fmt, currentLocalID, i + 1, currentLocalID * 5);
-//        print(outBuf);
-        printf("%s\n", outBuf);
+        print(outBuf);
 
         if (shouldUseMutex)
         {
@@ -265,9 +255,7 @@ bool RunChildProcess(void)
 
     SendMulticastWrapper(&ipcInfo, &message);
 
-    Log(Debug, "Proc done msg: %d\n", 1, ipcInfo.context.done + 1);
-
-    isFinished = true;
+    Log(Debug, "Proc done msg: %d\n", 1, ipcInfo.context.done);
 
     while (ipcInfo.context.done < ipcInfo.processAmount - 2)
     {
@@ -276,7 +264,7 @@ bool RunChildProcess(void)
             Log(Debug, "Error in proc %d\n", 1, currentLocalID);
             return -1;
         }
-        sendMessages();
+        sendMessages(true);
     }
     //Done end
     Log(Debug, "Shutdown in proc %d\n", 1, currentLocalID);

@@ -9,6 +9,7 @@ pack:
 	tar -czvf pa3.tar.gz pa3
 	tar -czvf pa4.tar.gz pa4
 	tar -czvf pa5.tar.gz pa5
+	tar -czvf pa6.tar.gz pa6
 
 clean:
 	rm -f lab1
