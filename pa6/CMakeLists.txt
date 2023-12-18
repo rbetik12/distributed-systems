@@ -3,7 +3,7 @@ project(pa2_mag C)
 
 set(CMAKE_C_COMPILER "clang")
 
-add_executable(pa2 
+add_executable(pa6
 common.h
 ipc.c
 ipc.h
@@ -15,6 +15,6 @@ Utils.c
 Utils.h
 )
 
-target_compile_options(pa2 PRIVATE -Wall -Werror -pedantic -std=c99)
-target_link_libraries(pa2 ${CMAKE_CURRENT_SOURCE_DIR}/libruntime.so)
+target_compile_options(pa6 PRIVATE -Wall -Werror -pedantic -std=c99)
+target_link_libraries(pa6 ${CMAKE_CURRENT_SOURCE_DIR}/libruntime.so)
 
