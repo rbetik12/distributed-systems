@@ -101,6 +101,11 @@ int doWork(void)
     {
         return 0;
     }
+    if (ret == ESRCH)
+    {
+        ipcInfo.context.done += 1;
+        return 0;
+    }
     else if (ret < 0)
     {
         //Log(Debug, "Recieve error: '%s' in process %d\n", 2, strerror(errno), currentLocalID);
@@ -281,8 +286,6 @@ bool RunChildProcess(void)
         Log(Debug, "Done multicast failed in process: %d\n", 1, ipcInfo.context.done + 1);
     }
 
-    Log(Debug, "Proc done msg: %d\n", 1, ipcInfo.context.done + 1);
-
     isFinished = true;
 
     while (ipcInfo.context.done < ipcInfo.processAmount - 2)
@@ -290,7 +293,6 @@ bool RunChildProcess(void)
         doWork();
     }
     //Done end
-    Log(Debug, "Shutdown in proc %d\n", 1, currentLocalID);
     ShutdownIO(&ipcInfo);
 
     return true;
