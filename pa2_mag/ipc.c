@@ -100,7 +100,7 @@ int receive(void *self, local_id from, Message *msg)
         }
         if (readAmount == 0)
         {
-            return -1;
+            return ESRCH;
         }
         return -1;
     }

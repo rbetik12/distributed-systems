@@ -50,12 +50,13 @@ typedef enum {
     BUSY
 } State;
 
-struct ForkInfo
+typedef struct ForkInfo
 {
     bool fork;
     bool dirty;
-    bool requested;
-};
+    bool requestedByOther;
+    bool requestedByMe;
+} ForkInfo;
 
 typedef struct ForkRequest
 {
